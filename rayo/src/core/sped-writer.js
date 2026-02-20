@@ -4,7 +4,7 @@
 
 import { formatBRNumber } from './sped-parser';
 
-export function generateModifiedSped(rawLines, modifications) {
+export function generateModifiedSped(rawLines, modifications, lineEnding = '\n') {
     const lines = [...rawLines];
 
     modifications.forEach(mod => {
@@ -41,11 +41,21 @@ export function generateModifiedSped(rawLines, modifications) {
         lines[mod.lineIndex] = fields.join('|');
     });
 
-    return lines.join('\n');
+    return lines.join(lineEnding);
+}
+
+function encodeToISO88591(str) {
+    const bytes = new Uint8Array(str.length);
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i);
+        bytes[i] = code <= 0xff ? code : 0x3f;
+    }
+    return bytes;
 }
 
 export function downloadFile(content, filename, type = 'text/plain') {
-    const blob = new Blob([content], { type: `${type};charset=ISO-8859-1` });
+    const encoded = encodeToISO88591(content);
+    const blob = new Blob([encoded], { type: `${type};charset=ISO-8859-1` });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

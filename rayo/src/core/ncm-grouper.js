@@ -59,33 +59,34 @@ export function groupByNCM(parsedData) {
     const c191List = contributions.filter(c => c.type === 'C191');
     const c195List = contributions.filter(c => c.type === 'C195');
 
+    // Construir mapa de filas por chave composta
+    const c195Queues = new Map();
+    c195List.forEach(c => {
+        const key = `${c.cnpj}_${c.cfop}`;
+        if (!c195Queues.has(key)) c195Queues.set(key, []);
+        c195Queues.get(key).push(c);
+    });
+
     // Tentar encontrar NCM via C190 parent
     // O C190 guarda NCM no campo 6 (COD_ITEM que é na verdade referência ao NCM)
     // Vamos usar uma abordagem pragmática: buscar o NCM nos items do 0200
     // que correspondem ao COD_ITEM do C190
 
     c191List.forEach((c191, idx) => {
-        const c195 = c195List[idx] || null;
+        const key = `${c191.cnpj}_${c191.cfop}`;
+        const queue = c195Queues.get(key) || [];
+        const c195 = queue.shift() || null;
 
-        let ncm = c191.codItem || 'SEM_NCM';
+        const item = c191.codItem ? items.get(c191.codItem) : null;
+        let ncm = item?.ncm || 'SEM_NCM';
         let desc = c191.codItem
-            ? `[${c191.codItem}] ${ncm !== 'SEM_NCM' ? ncm : ''}`.trim()
+            ? `[${c191.codItem}] ${item?.description || ''}`.trim()
             : (c191.cnpj ? `[C191/C195] - CNPJ: ${c191.cnpj}` : `[Registro ${idx + 1}]`);
 
         const groupKey = ncm !== 'SEM_NCM' ? ncm : `${c191.cnpj}_${c191.cfop}`;
 
         if (!groups.has(groupKey)) {
-            let titleDesc = desc;
-            if (ncm !== 'SEM_NCM') {
-                for (const [, item] of items) {
-                    if (item.ncm === ncm && item.description) {
-                        titleDesc = `[${c191.codItem}] ${item.description}`;
-                        desc = titleDesc;
-                        break;
-                    }
-                }
-            }
-            groups.set(groupKey, createGroup(groupKey, titleDesc));
+            groups.set(groupKey, createGroup(groupKey, desc));
         }
 
         const group = groups.get(groupKey);

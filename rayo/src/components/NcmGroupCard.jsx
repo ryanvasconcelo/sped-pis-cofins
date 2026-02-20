@@ -2,6 +2,11 @@ import { useState, useCallback } from 'react';
 import { IconChevronDown } from './Icons';
 import { calcBaseCalculo, calcPis, calcCofins, cstGeraCredito } from '../core/calculator';
 
+const isNoCreditCST = (cst) => {
+    const noCreditCSTs = ['01', '70', '71', '72', '73', '74', '75', '98', '99', '49'];
+    return cst && noCreditCSTs.includes(String(cst).padStart(2, '0'));
+};
+
 export default function NcmGroupCard({ groupKey, group, onUpdate }) {
     const [expanded, setExpanded] = useState(false);
 
@@ -37,6 +42,7 @@ export default function NcmGroupCard({ groupKey, group, onUpdate }) {
     const firstRec = group.records[0];
     const cstPisAtual = firstRec?.cstPis || '—';
     const cstCofinsAtual = firstRec?.cstCofins || '—';
+    const codItemAtual = firstRec?.codItem;
 
     return (
         <div className={`ncm-card ${isChanged ? 'changed' : ''}`}>
@@ -51,6 +57,11 @@ export default function NcmGroupCard({ groupKey, group, onUpdate }) {
                         </span>
                     </div>
                     <div className="ncm-card-meta">
+                        {codItemAtual && (
+                            <span className="product-code" title="Código do produto">
+                                Cód: {codItemAtual}
+                            </span>
+                        )}
                         <span>{group.productCount} {group.productCount === 1 ? 'registro' : 'registros'}</span>
                         <span>Base: {formatMoney(group.totalBase)}</span>
                         <span>CST atual: PIS {cstPisAtual} - COF {cstCofinsAtual}</span>
@@ -65,14 +76,21 @@ export default function NcmGroupCard({ groupKey, group, onUpdate }) {
                 <div className="ncm-card-inputs" onClick={e => e.stopPropagation()}>
                     <div className="input-group">
                         <label>CST PIS</label>
-                        <input
-                            type="text"
-                            className={`input-cst ${cstPis ? 'filled' : ''}`}
-                            value={cstPis}
-                            onChange={e => handleCstChange('novoCstPis', e.target.value)}
-                            placeholder="—"
-                            maxLength={2}
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <input
+                                type="text"
+                                className={`input-cst ${cstPis ? 'filled' : ''}`}
+                                value={cstPis}
+                                onChange={e => handleCstChange('novoCstPis', e.target.value)}
+                                placeholder="—"
+                                maxLength={2}
+                            />
+                            {isNoCreditCST(cstPis) && (
+                                <span title="Este CST não gera crédito" style={{ color: 'var(--warning)', fontSize: '0.7rem' }}>
+                                    ⚠️
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="input-group">
                         <label>Alíq PIS</label>
@@ -88,14 +106,21 @@ export default function NcmGroupCard({ groupKey, group, onUpdate }) {
                     </div>
                     <div className="input-group">
                         <label>CST COF</label>
-                        <input
-                            type="text"
-                            className={`input-cst ${cstCofins ? 'filled' : ''}`}
-                            value={cstCofins}
-                            onChange={e => handleCstChange('novoCstCofins', e.target.value)}
-                            placeholder="—"
-                            maxLength={2}
-                        />
+                        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <input
+                                type="text"
+                                className={`input-cst ${cstCofins ? 'filled' : ''}`}
+                                value={cstCofins}
+                                onChange={e => handleCstChange('novoCstCofins', e.target.value)}
+                                placeholder="—"
+                                maxLength={2}
+                            />
+                            {isNoCreditCST(cstCofins) && (
+                                <span title="Este CST não gera crédito" style={{ color: 'var(--warning)', fontSize: '0.7rem' }}>
+                                    ⚠️
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="input-group">
                         <label>Alíq COF</label>

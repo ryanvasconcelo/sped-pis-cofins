@@ -128,43 +128,21 @@ body {
     }
 }
 
-/* Lightning intro flash */
-.lightning-flash {
-    position: fixed;
-    inset: 0;
-    background: white;
-    z-index: 9999;
-    pointer-events: none;
-    animation: thunderFlash 1.5s ease-out forwards;
+.btn-toggle-on {
+    background: var(--success);
+    color: #fff;
+    border-color: var(--success);
 }
 
-[data-theme="dark"] .lightning-flash {
-    background: #0f1117;
+.btn-toggle-on:hover {
+    background: var(--danger);
+    border-color: var(--danger);
 }
 
-@keyframes thunderFlash {
-    0% {
-        opacity: 1;
-        background: #fff;
-    }
-
-    5% {
-        opacity: 0;
-    }
-
-    10% {
-        opacity: 1;
-        background: #fcd34d;
-    }
-
-    15% {
-        opacity: 0;
-    }
-
-    100% {
-        opacity: 0;
-        display: none;
-    }
+.btn-toggle-off {
+    background: var(--accent);
+    color: #1a1a2e;
+    border-color: var(--accent);
 }
 
 /* ============================================================
@@ -238,6 +216,29 @@ body {
 
 .theme-toggle:hover {
     border-color: var(--accent);
+}
+
+.btn-help {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    border: 1.5px solid var(--border);
+    background: var(--bg-tertiary);
+    color: var(--text-tertiary);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: serif;
+}
+
+.btn-help:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-soft);
 }
 
 .theme-btn {

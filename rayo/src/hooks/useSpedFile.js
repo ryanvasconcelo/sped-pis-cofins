@@ -69,32 +69,32 @@ export function useSpedFile() {
         });
     }, []);
 
-    const applyDeparaRules = useCallback((rules) => {
+    const saveDeparaRules = useCallback((rules) => {
         setDeparaRules(rules);
         localStorage.setItem('rayo_depara_rules', JSON.stringify(rules));
+    }, []);
 
-        if (!ncmGroups || rules.length === 0) return;
+    const applySelectedRules = useCallback((selectedRuleIds) => {
+        if (!ncmGroups || selectedRuleIds.length === 0) return;
+        const rulesToApply = deparaRules.filter(r => selectedRuleIds.includes(r.id));
+        if (rulesToApply.length === 0) return;
 
         setNcmGroups(prev => {
             const newGroups = new Map(prev);
-
             for (const [key, group] of newGroups) {
                 let novoCstPis = group.novoCstPis;
                 let novoCstCofins = group.novoCstCofins;
                 let changed = false;
 
-                // Para cada registro no grupo, checamos as regras
                 for (const rec of group.records) {
                     const ncm = group.ncm;
                     const codItem = rec.codItem || '';
                     const cstPisAtual = rec.cstPis;
                     const cstCofinsAtual = rec.cstCofins;
 
-                    for (const rule of rules) {
-                        // Verifica match da regra (o que estiver vazio na regra é curinga)
+                    for (const rule of rulesToApply) {
                         const matchNcm = !rule.ncm || rule.ncm === ncm;
                         const matchCodItem = !rule.codItem || rule.codItem === codItem;
-
                         const matchPis = !rule.cstAtual || rule.cstAtual === cstPisAtual;
                         const matchCofins = !rule.cstAtual || rule.cstAtual === cstCofinsAtual;
 
@@ -110,19 +110,69 @@ export function useSpedFile() {
                 }
 
                 if (changed) {
-                    newGroups.set(key, {
-                        ...group,
-                        novoCstPis,
-                        novoCstCofins
-                    });
+                    newGroups.set(key, { ...group, novoCstPis, novoCstCofins });
                 }
             }
             return newGroups;
         });
-    }, [ncmGroups]);
+
+        const now = Date.now();
+        const updatedRules = deparaRules.map(r =>
+            selectedRuleIds.includes(r.id) ? { ...r, appliedAt: now } : r
+        );
+        saveDeparaRules(updatedRules);
+    }, [ncmGroups, deparaRules, saveDeparaRules]);
+
+    const revertSelectedRules = useCallback((selectedRuleIds) => {
+        if (!ncmGroups || selectedRuleIds.length === 0) return;
+        const rulesToRevert = deparaRules.filter(r => selectedRuleIds.includes(r.id));
+        if (rulesToRevert.length === 0) return;
+
+        setNcmGroups(prev => {
+            const newGroups = new Map(prev);
+            for (const [key, group] of newGroups) {
+                let novoCstPis = group.novoCstPis;
+                let novoCstCofins = group.novoCstCofins;
+                let changed = false;
+
+                for (const rec of group.records) {
+                    const ncm = group.ncm;
+                    const codItem = rec.codItem || '';
+                    const cstPisAtual = rec.cstPis;
+                    const cstCofinsAtual = rec.cstCofins;
+
+                    for (const rule of rulesToRevert) {
+                        const matchNcm = !rule.ncm || rule.ncm === ncm;
+                        const matchCodItem = !rule.codItem || rule.codItem === codItem;
+                        const matchPis = !rule.cstAtual || rule.cstAtual === cstPisAtual;
+                        const matchCofins = !rule.cstAtual || rule.cstAtual === cstCofinsAtual;
+
+                        if (matchNcm && matchCodItem && matchPis && novoCstPis === rule.novoCst) {
+                            novoCstPis = '';
+                            changed = true;
+                        }
+                        if (matchNcm && matchCodItem && matchCofins && novoCstCofins === rule.novoCst) {
+                            novoCstCofins = '';
+                            changed = true;
+                        }
+                    }
+                }
+
+                if (changed) {
+                    newGroups.set(key, { ...group, novoCstPis, novoCstCofins });
+                }
+            }
+            return newGroups;
+        });
+
+        const updatedRules = deparaRules.map(r =>
+            selectedRuleIds.includes(r.id) ? { ...r, appliedAt: null } : r
+        );
+        saveDeparaRules(updatedRules);
+    }, [ncmGroups, deparaRules, saveDeparaRules]);
 
     return {
         parsedData, ncmGroups, ncmList, fileName, loading, error, deparaRules,
-        processFile, reset, updateGroup, applyDeparaRules
+        processFile, reset, updateGroup, saveDeparaRules, applySelectedRules, revertSelectedRules
     };
 }

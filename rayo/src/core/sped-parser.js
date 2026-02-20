@@ -52,7 +52,8 @@ export function formatBRNumber(num, decimals = 2) {
 // === PARSER ===
 
 export function parseSpedFile(content) {
-    const lines = content.split('\n');
+    const lineEnding = content.includes('\r\n') ? '\r\n' : '\n';
+    const lines = content.split(/\r?\n/);
     const rawLines = [...lines];
 
     const items = new Map();
@@ -60,7 +61,7 @@ export function parseSpedFile(content) {
     let format = null;
     let hasC170 = false, hasC191 = false, hasC195 = false;
     let companyName = '', cnpj = '', period = '';
-    let currentC190CodItem = '';
+    let currentParentCodItem = '';
 
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -112,15 +113,16 @@ export function parseSpedFile(content) {
                 });
                 break;
 
+            case 'C180':
             case 'C190':
-                currentC190CodItem = fields[6] || '';
+                currentParentCodItem = fields[5] || '';
                 break;
 
             case 'C191':
                 hasC191 = true;
                 contributions.push({
                     lineIndex: i, type: 'C191',
-                    codItem: currentC190CodItem,
+                    codItem: currentParentCodItem,
                     cnpj: fields[FIELDS_C191.CNPJ] || '',
                     cfop: fields[FIELDS_C191.CFOP] || '',
                     vlItem: parseBRNumber(fields[FIELDS_C191.VL_ITEM]),
@@ -141,7 +143,7 @@ export function parseSpedFile(content) {
                 hasC195 = true;
                 contributions.push({
                     lineIndex: i, type: 'C195',
-                    codItem: currentC190CodItem,
+                    codItem: currentParentCodItem,
                     cnpj: fields[FIELDS_C195.CNPJ] || '',
                     cfop: fields[FIELDS_C195.CFOP] || '',
                     vlItem: parseBRNumber(fields[FIELDS_C195.VL_ITEM]),
@@ -169,7 +171,7 @@ export function parseSpedFile(content) {
     else if (hasC170 && (hasC191 || hasC195)) format = 'MISTO';
 
     return {
-        rawLines, items, contributions, format,
+        rawLines, items, contributions, format, lineEnding,
         meta: { companyName, cnpj, period },
         stats: { totalLines: lines.length, totalItems: items.size, totalC170: countC170, totalC191: countC191, totalC195: countC195 }
     };

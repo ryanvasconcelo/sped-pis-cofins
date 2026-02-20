@@ -11,29 +11,18 @@ import { generateNCMsCsv } from './core/ncm-grouper';
 
 export default function App() {
     const { theme, toggle } = useTheme();
-    const { parsedData, ncmGroups, ncmList, fileName, loading, error, deparaRules, processFile, reset, updateGroup, applyDeparaRules } = useSpedFile();
+    const { parsedData, ncmGroups, ncmList, fileName, loading, error, deparaRules, processFile, reset, updateGroup, saveDeparaRules, applySelectedRules, revertSelectedRules } = useSpedFile();
     const [searchTerm, setSearchTerm] = useState('');
     const [toasts, setToasts] = useState([]);
-    const [showOnboarding, setShowOnboarding] = useState(false);
+    const [showOnboarding, setShowOnboarding] = useState(() => {
+        return !localStorage.getItem('rayo_onboarding_seen');
+    });
     const [showDePara, setShowDePara] = useState(false);
-    const [showFlash, setShowFlash] = useState(true);
-
-    // --- Initial animations & onboarding ---
-    useEffect(() => {
-        // Flash animation finishes after 1.5s
-        const timer = setTimeout(() => setShowFlash(false), 1500);
-        return () => clearTimeout(timer);
-    }, []);
-
-    useEffect(() => {
-        if (parsedData && !loading && !localStorage.getItem('rayo_has_seen_guide')) {
-            setShowOnboarding(true);
-        }
-    }, [parsedData, loading]);
+    const [cst50Active, setCst50Active] = useState(false);
 
     const closeOnboarding = () => {
         setShowOnboarding(false);
-        localStorage.setItem('rayo_has_seen_guide', 'true');
+        localStorage.setItem('rayo_onboarding_seen', 'true');
     };
 
     // --- Toast ---
@@ -95,15 +84,22 @@ export default function App() {
         return { altered, totalPis, totalCofins, total: totalPis + totalCofins };
     }, [ncmGroups]);
 
-    // --- Aplicar em lote ---
-    const handleApplyAll = useCallback((cst) => {
+    const handleToggleCst50 = useCallback(() => {
+        const newValue = !cst50Active;
+        setCst50Active(newValue);
+
         if (!ncmGroups) return;
         for (const [key] of ncmGroups) {
-            updateGroup(key, 'novoCstPis', cst);
-            updateGroup(key, 'novoCstCofins', cst);
+            updateGroup(key, 'novoCstPis', newValue ? '50' : '');
+            updateGroup(key, 'novoCstCofins', newValue ? '50' : '');
         }
-        showToast(`CST ${cst} aplicado a todos os grupos!`);
-    }, [ncmGroups, updateGroup, showToast]);
+        showToast(
+            newValue
+                ? 'CST 50 aplicado a todos os grupos!'
+                : 'CST 50 removido de todos os grupos.',
+            newValue ? 'success' : 'warning'
+        );
+    }, [cst50Active, ncmGroups, updateGroup, showToast]);
 
     // --- Download NCMs ---
     const handleDownloadNCMs = useCallback(() => {
@@ -170,7 +166,7 @@ export default function App() {
             });
         }
 
-        const modified = generateModifiedSped(parsedData.rawLines, modifications);
+        const modified = generateModifiedSped(parsedData.rawLines, modifications, parsedData.lineEnding);
 
         const company = parsedData?.meta?.companyName?.trim() || 'ARQUIVO_SPED';
         const finalName = `${company} - sped final.txt`;
@@ -197,7 +193,6 @@ export default function App() {
 
     return (
         <div className="app-layout">
-            {showFlash && <div className="lightning-flash" />}
 
             {/* Header */}
             <header className="header">
@@ -209,6 +204,14 @@ export default function App() {
                     <span className="header-subtitle">Revisão PIS/COFINS</span>
                 </div>
                 <div className="theme-toggle">
+                    <button
+                        className="btn-help"
+                        onClick={() => setShowOnboarding(true)}
+                        title="Como usar o Rayo"
+                        aria-label="Ajuda"
+                    >
+                        ?
+                    </button>
                     <button className={`theme-btn ${theme === 'light' ? 'active' : ''}`} onClick={toggle}>
                         <IconSun size={14} />
                     </button>
@@ -316,9 +319,9 @@ export default function App() {
                                 <IconDownload size={15} />
                                 Download NCMs
                             </button>
-                            <button className="btn btn-primary" onClick={() => handleApplyAll('50')}>
+                            <button className={`btn ${cst50Active ? 'btn-toggle-on' : 'btn-toggle-off'}`} onClick={handleToggleCst50}>
                                 <IconBolt size={15} />
-                                Aplicar CST 50 a todos
+                                {cst50Active ? 'Remover CST 50 de todos' : 'Aplicar CST 50 a todos'}
                             </button>
                         </div>
                         <div className="action-bar-right">
@@ -402,11 +405,11 @@ export default function App() {
                         <div className="onboarding-steps">
                             <div className="onboarding-step">
                                 <div className="onboarding-step-icon btn-neutral">
-                                    <IconDownload size={16} />
+                                    <IconUpload size={16} />
                                 </div>
                                 <div className="onboarding-step-content">
-                                    <h4>1. Download NCMs</h4>
-                                    <p>Baixe uma lista contendo todos os NCMs únicos encontrados no seu SPED, um por linha. Ideal para usar como filtro ou importar em outras ferramentas.</p>
+                                    <h4>1. Upload</h4>
+                                    <p>Arraste seu arquivo TXT do SPED ou clique para selecionar.</p>
                                 </div>
                             </div>
                             <div className="onboarding-step">
@@ -414,8 +417,8 @@ export default function App() {
                                     <IconBolt size={16} />
                                 </div>
                                 <div className="onboarding-step-content">
-                                    <h4>2. Aplicar CST 50 a todos</h4>
-                                    <p>O botão relâmpago! Ele preenche de uma só vez o CST 50 em TODOS os grupos NCM do arquivo. Um atalho formidável para poupar tempo.</p>
+                                    <h4>2. Revisar por NCM</h4>
+                                    <p>Os produtos são agrupados por NCM. Altere o CST PIS e COFINS de cada grupo. Use "Aplicar CST 50 a todos" como ponto de partida rápido (é um toggle — clique novamente para desfazer).</p>
                                 </div>
                             </div>
                             <div className="onboarding-step">
@@ -423,8 +426,8 @@ export default function App() {
                                     <IconRefresh size={16} />
                                 </div>
                                 <div className="onboarding-step-content">
-                                    <h4>3. Automação De-Para</h4>
-                                    <p>No painel Regras De-Para, você pode cadastrar condições baseadas em <b>NCM + Código do Produto + CST Atual</b> para que o sistema altere automaticamente para o Novo CST desejado.</p>
+                                    <h4>3. Regras De-Para</h4>
+                                    <p>Crie regras reutilizáveis (ex: "NCM 15079011 → CST 50"). Salve as regras e aplique manualmente as que quiser a cada arquivo.</p>
                                 </div>
                             </div>
                             <div className="onboarding-step">
@@ -432,8 +435,8 @@ export default function App() {
                                     <IconExport size={16} />
                                 </div>
                                 <div className="onboarding-step-content">
-                                    <h4>4. Exportar TXT Revisado</h4>
-                                    <p>Após editar alíquotas ou modificar CSTs, e verificar a estimativa de créditos no sistema, baixe o arquivo SPED final (.txt) atualizado.</p>
+                                    <h4>4. Exportar</h4>
+                                    <p>Quando terminar, clique em "Exportar TXT Revisado". O arquivo gerado é idêntico ao original, apenas com os campos PIS/COFINS alterados. Valide no PVA antes de transmitir.</p>
                                 </div>
                             </div>
                         </div>
@@ -451,10 +454,14 @@ export default function App() {
             {showDePara && (
                 <DeParaModal
                     rules={deparaRules}
-                    onSave={(rules) => {
-                        applyDeparaRules(rules);
-                        setShowDePara(false);
-                        showToast('Regras De-Para aplicadas com sucesso!');
+                    onSave={saveDeparaRules}
+                    onApplySelected={(ids) => {
+                        applySelectedRules(ids);
+                        showToast(`${ids.length} regra(s) aplicada(s)!`);
+                    }}
+                    onRevertSelected={(ids) => {
+                        revertSelectedRules(ids);
+                        showToast(`${ids.length} regra(s) revertida(s)!`);
                     }}
                     onClose={() => setShowDePara(false)}
                 />
