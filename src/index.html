@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Automação SPED PIS/COFINS — Revisão de CSTs</title>
+  <meta name="description"
+    content="Sistema de revisão de CSTs de PIS e COFINS em arquivos SPED EFD-Contribuições para recuperação de créditos tributários">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+  <!-- TOAST CONTAINER -->
+  <div id="toast-container"></div>
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-content">
+      <div class="header-brand">
+        <span class="header-icon">🏛️</span>
+        <div>
+          <h1>Automação SPED PIS/COFINS</h1>
+          <p class="header-subtitle">Revisão de CSTs para Recuperação Tributária</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN -->
+  <main class="main">
+    <!-- UPLOAD SECTION -->
+    <section class="section upload-section">
+      <div class="section-header">
+        <h2>📂 Upload do Arquivo SPED</h2>
+        <p>Selecione o arquivo TXT da EFD-Contribuições do cliente</p>
+      </div>
+      <div id="dropzone" class="dropzone">
+        <div class="upload-prompt">
+          <span class="upload-icon">📂</span>
+          <p class="upload-title">Arraste seu arquivo SPED (.TXT) aqui</p>
+          <p class="upload-subtitle">ou clique para selecionar</p>
+        </div>
+      </div>
+      <input type="file" id="file-input" accept=".txt,.TXT" hidden>
+    </section>
+
+    <!-- FILE INFO -->
+    <section id="file-info" class="section hidden"></section>
+
+    <!-- ACTIONS PANEL -->
+    <section id="actions-panel" class="section actions-panel hidden">
+      <div class="actions-row">
+        <button id="btn-download-ncm" class="btn btn-primary">
+          <span class="btn-icon">⬇️</span>
+          Download NCMs para e-Auditoria
+        </button>
+        <div class="action-hint">
+          Baixe a lista de NCMs únicos para consultar no e-Auditoria e obter os CSTs corretos
+        </div>
+      </div>
+    </section>
+
+    <!-- SEARCH PANEL -->
+    <section id="search-panel" class="section search-panel hidden">
+      <div class="section-header">
+        <h2>📋 Painel de Revisão de CSTs</h2>
+        <p>Altere os CSTs de PIS e COFINS para os códigos que geram crédito tributário</p>
+      </div>
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="search-input" placeholder="Filtrar por NCM, descrição..." class="search-input">
+      </div>
+    </section>
+
+    <!-- TABLE -->
+    <section id="table-container" class="section table-section hidden">
+      <div class="table-scroll">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th class="th-num">#</th>
+              <th class="th-desc">Descrição / CNPJ</th>
+              <th class="th-ncm">NCM</th>
+              <th class="th-cfop">CFOP</th>
+              <th class="th-money">Base Cálc.</th>
+              <th class="th-cst" colspan="2">
+                <div class="th-group">
+                  <span class="th-group-label">PIS</span>
+                  <div class="th-sub">
+                    <span>CST Atual</span>
+                    <span>Novo CST</span>
+                  </div>
+                </div>
+              </th>
+              <th class="th-aliq">Alíq. PIS</th>
+              <th class="th-money">Valor PIS</th>
+              <th class="th-cst" colspan="2">
+                <div class="th-group">
+                  <span class="th-group-label">COFINS</span>
+                  <div class="th-sub">
+                    <span>CST Atual</span>
+                    <span>Novo CST</span>
+                  </div>
+                </div>
+              </th>
+              <th class="th-aliq">Alíq. COF</th>
+              <th class="th-money">Valor COF</th>
+            </tr>
+          </thead>
+          <tbody id="data-tbody">
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- SUMMARY -->
+    <section id="summary" class="section hidden"></section>
+
+    <!-- FINAL ACTIONS -->
+    <section id="final-actions" class="section final-actions">
+      <button id="btn-concluir" class="btn btn-success">
+        <span class="btn-icon">✅</span>
+        Concluir Revisão
+      </button>
+      <button id="btn-download-final" class="btn btn-accent" disabled>
+        <span class="btn-icon">⬇️</span>
+        Download TXT Revisado
+      </button>
+    </section>
+  </main>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <p>Automação SPED PIS/COFINS v1.0 — Processamento 100% local. Seus dados fiscais nunca saem do seu computador.</p>
+  </footer>
+
+  <!-- SCRIPTS (ordem importa: dependências primeiro) -->
+  <script src="js/sped-parser.js"></script>
+  <script src="js/ncm-extractor.js"></script>
+  <script src="js/calculator.js"></script>
+  <script src="js/sped-writer.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/app.js"></script>
+</body>
+
+</html>
