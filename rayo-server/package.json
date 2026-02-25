@@ -1,0 +1,19 @@
+{
+    "name": "rayo-server",
+    "version": "1.0.0",
+    "description": "Microserviço Express + Puppeteer para automação do e-Auditoria",
+    "main": "index.js",
+    "type": "commonjs",
+    "scripts": {
+        "start": "node index.js",
+        "start:bg": "nohup node index.js > nohup.out 2>&1 &",
+        "dev": "node --watch index.js"
+    },
+    "dependencies": {
+        "cors": "^2.8.5",
+        "dotenv": "^16.4.5",
+        "express": "^4.18.2",
+        "puppeteer": "^22.0.0",
+        "xlsx": "^0.18.5"
+    }
+}

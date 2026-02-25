@@ -21,22 +21,32 @@ Você pode baixar o código de duas formas:
 
 ## 2. Configurando a Aplicação
 
-1. Abra o **Prompt de Comando (CMD)** como Administrador.
-2. Navegue até a pasta `rayo` dentro do projeto onde você baixou/extraiu os arquivos:
+### 2.1 Backend (Servidor de Inteligência)
+1. Navegue até a pasta `rayo-server`:
     ```cmd
-    cd C:\caminho\para\a\pasta\sped-pis-cofins\rayo
+    cd C:\caminho\para\a\pasta\sped-pis-cofins\rayo-server
     ```
-3. Instale as dependências executando:
+2. Instale as dependências:
     ```cmd
     npm install
     ```
-4. Crie a versão otimizada para produção (Build):
+
+### 2.2 Frontend (Interface Visual)
+1. Navegue até a pasta `rayo`:
+    ```cmd
+    cd C:\caminho\para\a\pasta\sped-pis-cofins\rayo
+    ```
+2. Instale as dependências:
+    ```cmd
+    npm install
+    ```
+3. Crie a versão otimizada para produção (Build):
     ```cmd
     npm run build
     ```
-    *Isso criará uma pasta chamada `dist` com os arquivos finais minificados e super rápidos.*
+    *Isso criará uma pasta chamada `dist`.*
 
-5. Instale o pacote `serve` globalmente (ele será nosso servidor web):
+4. Instale o pacote `serve` globalmente:
     ```cmd
     npm install -g serve
     ```
@@ -45,11 +55,19 @@ Você pode baixar o código de duas formas:
 
 ## 3. Rodando o Servidor na Rede Local
 
-Ainda no Prompt de Comando, dentro da pasta `rayo`, inicie o servidor na porta `80` (porta padrão de sites, para que os usuários não precisem digitar a porta na URL):
+Para funcionar, você precisará rodar **dois serviços** simultaneamente: o Servidor de Inteligência (Porta 3001) e o Site (Porta 80).
 
-```cmd
-serve -s dist -l 80
-```
+1. Abra um CMD e inicie o **Site**:
+   ```cmd
+   cd C:\caminho\para\rayo
+   serve -s dist -l 80
+   ```
+
+2. Abra **outro** CMD e inicie o **Servidor**:
+   ```cmd
+   cd C:\caminho\para\rayo-server
+   npm start
+   ```
 
 Se aparecer uma janela do **Firewall do Windows** perguntando se deseja permitir que o Node.js acesse a rede, marque a caixinha **Redes Privadas** (e Públicas, se tiver dúvida) e clique em **Permitir Acesso**.
 
@@ -74,22 +92,28 @@ A aplicação Rayo abrirá automaticamente, sem senhas!
 
 Para não precisar abrir o CMD toda vez que o servidor for reiniciado, vamos criar um script de inicialização dupla:
 
-1. Abra o **Bloco de Notas** no Windows.
-2. Cole o seguinte código (ajuste o caminho de acordo com onde você salvou a pasta):
+1. Abra o **Bloco de Notas**.
+2. Cole o seguinte código (ajuste os caminhos):
     ```bat
     @echo off
-    echo Iniciando Servidor Rayo...
-    cd C:\Caminho\Completo\Para\sped-pis-cofins\rayo
+    echo Iniciando Ecossistema Rayo (Backend + Frontend)...
+    
+    :: Inicia o Backend em segundo plano
+    start /b "" cmd /c "cd C:\Caminho\rayo-server && npm start"
+    
+    :: Inicia o Frontend (Site)
+    cd C:\Caminho\rayo
     serve -s dist -l 80
     ```
-3. Salve o arquivo com o nome `iniciar-rayo.bat` (não salve como .txt).
-4. Pressione `Windows + R`, digite `shell:startup` e dê Enter. A pasta Inicializar abrirá.
-5. Coloque o arquivo `iniciar-rayo.bat` dentro dessa pasta. 
-Pronto! Sempre que o Windows ligar, ele já subirá o servidor para toda a rede automaticamente.
+3. Salve como `iniciar-rayo.bat`.
+4. Pressione `Windows + R`, digite `shell:startup` e coloque o arquivo lá.
 
 ---
 
 ### Solução de Problemas Comuns
-* **A rede não acha o site / Fica carregando infinitamente:** O Firewall do Windows está bloqueando a porta 80. Vá no Painel de Controle > Firewall do Windows Defender > Configurações Avançadas > Regras de Entrada > Nova Regra > Porta > TCP, Específica (80) > Permitir a conexão > Nomeie como "Porta 80 Rayo".
-* **O CMD diz "serve não é reconhecido":** Feche todos os CMDs, abra de novo como Administrador e rode `npm install -g serve` aguardando concluir antes de fechar.
+* **A rede não acha o site / Fica carregando infinitamente:** O Firewall do Windows está bloqueando as portas. Você deve liberar a porta **80** (Site) e a **3001** (Servidor).
+    - Vá no Painel de Controle > Firewall do Windows > Configurações Avançadas.
+    - Regras de Entrada > Nova Regra > Porta > TCP.
+    - Em "Portas locais específicas", digite: `80, 3001`.
+    - Permitir a conexão > Nomeie como "Rayo Network Access".
 * **O IP mudou:** Se a internet reiniciar, roteadores podem trocar o IP do Windows. É recomendado ir nas configurações de rede do Windows e colocar o IP como *Estático* ou fixá-lo no roteador.
