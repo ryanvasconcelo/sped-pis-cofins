@@ -154,7 +154,7 @@ async function scrapeEAuditoria({ ncms, uf, atividade, regime, regimeEspecial })
     console.log(`[Rayo Scraper] Iniciando para ${ncms.length} NCMs | UF: ${uf} | Atividade: ${atividade} | Regime: ${regime}`);
 
     const browser = await puppeteer.launch({
-        headless: false, // Mudado para false a pedido do usuário para visualização / debug
+        headless: true, // Mudado para false a pedido do usuário para visualização / debug
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
