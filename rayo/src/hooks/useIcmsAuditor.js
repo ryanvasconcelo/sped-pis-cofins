@@ -26,6 +26,7 @@ export function useIcmsAuditor() {
     const [auditResults, setAuditResults] = useState(null);
     const [ncmSemCobertura, setNcmSemCobertura] = useState([]);
     const [correctedAlterdata, setCorrectedAlterdata] = useState(null);
+    const [modifiedCells, setModifiedCells] = useState(null);
 
     const handleUploadAlterdata = useCallback(async (file) => {
         try {
@@ -85,7 +86,7 @@ export function useIcmsAuditor() {
                 ? 'industria'
                 : 'comercio';
 
-            const { report, correctedData, ncmSemCobertura: semCobertura } = runAudit(
+            const { report, correctedData, modifiedCells: modified, ncmSemCobertura: semCobertura } = runAudit(
                 alterdataBase,
                 eAuditoriaBase,
                 { natureza, regime: perfilEmpresa.regime.toLowerCase() }
@@ -93,6 +94,7 @@ export function useIcmsAuditor() {
             setAuditResults(report);
             setNcmSemCobertura(semCobertura);
             setCorrectedAlterdata(correctedData);
+            setModifiedCells(modified);
             setError(null);
         } catch (err) {
             setError('Erro ao cruzar as bases: ' + err.message);
@@ -111,6 +113,7 @@ export function useIcmsAuditor() {
         setAuditResults(null);
         setNcmSemCobertura([]);
         setCorrectedAlterdata(null);
+        setModifiedCells(null);
         setError(null);
         // Não reseta o perfil — analista provavelmente vai auditar a mesma empresa de novo
     }, []);
@@ -119,7 +122,7 @@ export function useIcmsAuditor() {
         alterdataBase, eAuditoriaBase, eAuditoriaMetadata,
         alterdataName, eAuditoriaName, alterdataHasSeguro,
         perfilEmpresa, updatePerfil,
-        loading, error, auditResults, ncmSemCobertura, correctedAlterdata,
+        loading, error, auditResults, ncmSemCobertura, correctedAlterdata, modifiedCells,
         handleUploadAlterdata, handleUploadEAuditoria, executeAudit, resetFiles,
         setEAuditoriaBaseSilently
     };

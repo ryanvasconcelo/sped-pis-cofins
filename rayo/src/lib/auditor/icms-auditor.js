@@ -93,8 +93,11 @@ export const calcularBaseCerta = (linha, regra, cstRaizEsperado) => {
  */
 export const runAudit = (alterdataRows, eAuditoriaRows, perfil) => {
     const report = [];
-    const ncmSemCobertura = new Map(); // NCMs não encontrados na base — auditoria manual obrigatória
-    const correctedData = JSON.parse(JSON.stringify(alterdataRows)); // Deep copy — preserva o original
+    const ncmSemCobertura = new Map();
+    const correctedData = JSON.parse(JSON.stringify(alterdataRows)); // Deep copy
+    // modifiedCells: Map<rowIndex(0-based), Set<fieldName>>
+    // Usado pelo excel-writer para colorir células alteradas em vermelho
+    const modifiedCells = new Map();
 
     // Índice O(1) do e-Auditoria por NCM limpo
     const baseMap = new Map();
@@ -256,7 +259,9 @@ export const runAudit = (alterdataRows, eAuditoriaRows, perfil) => {
             if (erroMatematico) {
                 const valorAntes = row['ICMS Base item'];
                 row['ICMS Base item'] = Number(bcMapeada.toFixed(2));
-                // Atualiza o apontamento matemático com a informação de correção
+                // Registra t célula como modificada
+                if (!modifiedCells.has(index)) modifiedCells.set(index, new Set());
+                modifiedCells.get(index).add('ICMS Base item');
                 const apontamentoMatematico = report.findLast(r => r.linha === numLinha && r.motivo.includes('Matemático'));
                 if (apontamentoMatematico) {
                     apontamentoMatematico.correcaoAplicada = {
@@ -268,13 +273,14 @@ export const runAudit = (alterdataRows, eAuditoriaRows, perfil) => {
             }
 
             // Corrigir CST crítico — preserva o dígito de origem do Alterdata
-            // Kickoff: "Mantém a origem (1ºdígito) + Raiz Base (2 últimos dígitos)"
             if (resultadoCst.status === 'erro') {
                 const digitoOrigem = cstOriginal.charAt(0) || '0';
                 const cstCorrigido = digitoOrigem + raizEsperada;
                 const valorAntesCst = row['CST ICMS'];
                 row['CST ICMS'] = cstCorrigido;
-                // Atualiza o apontamento de CST com a informação de correção
+                // Registra a célula como modificada
+                if (!modifiedCells.has(index)) modifiedCells.set(index, new Set());
+                modifiedCells.get(index).add('CST ICMS');
                 const apontamentoCst = report.findLast(r => r.linha === numLinha && r.motivo.includes('CST divergente'));
                 if (apontamentoCst) {
                     apontamentoCst.correcaoAplicada = {
@@ -290,6 +296,7 @@ export const runAudit = (alterdataRows, eAuditoriaRows, perfil) => {
     return {
         report,
         correctedData,
+        modifiedCells,
         ncmSemCobertura: [...ncmSemCobertura.values()]
     };
 };

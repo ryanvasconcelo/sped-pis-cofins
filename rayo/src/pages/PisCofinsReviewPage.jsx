@@ -3,13 +3,15 @@ import { Virtuoso } from 'react-virtuoso';
 import { useTheme } from '../hooks/useTheme';
 import { useSpedFile } from '../hooks/useSpedFile';
 import NcmGroupCard from '../components/NcmGroupCard';
+import AssignmentsPanel from '../components/AssignmentsPanel';
 import { IconBolt, IconUpload, IconDownload, IconExport, IconSearch, IconCheck, IconX, IconSun, IconMoon, IconWarning, IconRefresh, IconBot } from '../components/Icons';
 import { calcBaseCalculo, calcPis, calcCofins, cstGeraCredito } from '../core/calculator';
 import { generateModifiedSped, downloadFile } from '../core/sped-writer';
-import { generateNCMsCsv } from '../core/ncm-grouper';
+import { generateNCMsCsv, detectarMultiCst } from '../core/ncm-grouper';
 import { Link } from 'react-router-dom';
 import { useEAuditoriaScraper, SCRAPER_STATUS } from '../hooks/useEAuditoriaScraper';
 import { aplicarAutoCorrecaoPisCofins } from '../lib/auditor/piscofins-auditor';
+import { useAssignments } from '../hooks/useAssignments';
 
 const ATIVIDADES = [
     { value: 'GERAL', label: 'Geral' },
@@ -59,8 +61,12 @@ function SelectField({ label, value, onChange, options, required = false, hint, 
 export default function PisCofinsReviewPage() {
     const { theme, toggle } = useTheme();
     const { parsedData, ncmGroups, ncmList, fileName, loading, error, processFile, reset, updateGroup, applyAutoCorrecoes } = useSpedFile();
+    const assignments = useAssignments(applyAutoCorrecoes, ncmGroups);
+    const virtuosoRef = useRef(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all'); // 'all', 'success', 'warning', 'info'
+    const [statusFilter, setStatusFilter] = useState('all');
+    const [showAssignments, setShowAssignments] = useState(false);
+    const [justAppliedNcms, setJustAppliedNcms] = useState(new Set());
     const [toasts, setToasts] = useState([]);
     const [showOnboarding, setShowOnboarding] = useState(() => {
         return !localStorage.getItem('rayo_onboarding_seen');
@@ -97,6 +103,37 @@ export default function PisCofinsReviewPage() {
         setToasts(prev => [...prev, { id, message, type }]);
         setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 4000);
     }, []);
+
+    // --- Apply Assignments com feedback ---
+    const handleApplyAll = useCallback((currentFilteredGroups) => {
+        const applied = assignments.applyAll();
+        setShowAssignments(false);
+
+        if (!applied || applied.length === 0) {
+            showToast('Nenhuma atribuição aplicada.', 'warning');
+            return;
+        }
+
+        // Toast com os NCMs atualizados
+        const ncmList = applied.length <= 4
+            ? applied.join(', ')
+            : `${applied.slice(0, 3).join(', ')} +${applied.length - 3} outros`;
+        showToast(`✅ ${applied.length} NCM${applied.length > 1 ? 's' : ''} atualizad${applied.length > 1 ? 'os' : 'o'}: ${ncmList}`);
+
+        // Highlight nos cards por 4s
+        const appliedSet = new Set(applied);
+        setJustAppliedNcms(appliedSet);
+        setTimeout(() => setJustAppliedNcms(new Set()), 4000);
+
+        // Scroll até o primeiro NCM aplicado na lista filtrada
+        const firstIdx = currentFilteredGroups.findIndex(([, g]) => appliedSet.has(g.ncm));
+        if (firstIdx >= 0) {
+            // Pequeno delay para o React re-renderizar os grupos antes de rolar
+            setTimeout(() => {
+                virtuosoRef.current?.scrollToIndex({ index: firstIdx, behavior: 'smooth', align: 'center' });
+            }, 80);
+        }
+    }, [assignments, showToast]);
 
     // --- Upload ---
     const handleDrop = useCallback((e) => {
@@ -139,6 +176,8 @@ export default function PisCofinsReviewPage() {
             return 'neutral';
         };
 
+        const hasMultiCst = (group) => detectarMultiCst(group).hasMultiCst;
+
         // Convert to array and sort by Base de Calculo (highest first)
         const sorted = [...ncmGroups.entries()].sort((a, b) => {
             let valA = 0, valB = 0;
@@ -157,7 +196,8 @@ export default function PisCofinsReviewPage() {
 
             // Apply Status Filter
             const groupStatus = getStatus(group, key);
-            const matchesStatus = statusFilter === 'all' || groupStatus === statusFilter;
+            const matchesStatus = statusFilter === 'all' ||
+                (statusFilter === 'multicst' ? hasMultiCst(group) : groupStatus === statusFilter);
 
             return matchesSearch && matchesStatus;
         });
@@ -567,7 +607,8 @@ export default function PisCofinsReviewPage() {
                                 { id: 'success', label: 'Regularizados', color: 'var(--success)', bg: 'rgba(34, 197, 94, 0.1)' },
                                 { id: 'warning', label: 'Pendentes', color: 'var(--warning-text)', bg: 'rgba(245, 158, 11, 0.1)' },
                                 { id: 'danger', label: 'Não Encontrados', color: 'var(--danger)', bg: 'rgba(239, 68, 68, 0.1)' },
-                                { id: 'info', label: 'Informativos', color: 'var(--accent)', bg: 'var(--accent-soft)' }
+                                { id: 'info', label: 'Informativos', color: 'var(--accent)', bg: 'var(--accent-soft)' },
+                                { id: 'multicst', label: '⚠️ Multi-CST', color: '#d97706', bg: 'rgba(245, 158, 11, 0.1)' }
                             ].map(filter => (
                                 <button
                                     key={filter.id}
@@ -613,6 +654,7 @@ export default function PisCofinsReviewPage() {
                     {/* NCM Groups List */}
                     <div style={{ height: 'calc(100vh - 480px)', minHeight: '400px', marginBottom: '100px' }}>
                         <Virtuoso
+                            ref={virtuosoRef}
                             style={{ height: '100%' }}
                             data={filteredGroups}
                             itemContent={(index, [key, group]) => (
@@ -627,6 +669,8 @@ export default function PisCofinsReviewPage() {
                                             const ncmKey = Object.keys(r).find(k => k.toUpperCase().includes('NCM'));
                                             return r[ncmKey] && String(r[ncmKey]).replace(/\D/g, '') === group.ncm;
                                         }) : false}
+                                        assignedKey={assignments.getKeyForNcm(group.ncm)}
+                                        isJustApplied={justAppliedNcms.has(group.ncm)}
                                     />
                                 </div>
                             )}
@@ -670,6 +714,13 @@ export default function PisCofinsReviewPage() {
                         </div>
 
                         <div style={{ display: 'flex', gap: '12px' }}>
+                            <button
+                                className="btn btn-secondary"
+                                onClick={() => setShowAssignments(true)}
+                                style={{ borderRadius: 'var(--radius-md)', display: 'flex', alignItems: 'center', gap: '6px' }}
+                            >
+                                📌 Atribuições {assignments.assignedCount > 0 && <span style={{ background: 'var(--accent)', color: '#1a1a2e', borderRadius: '10px', padding: '0 6px', fontSize: '0.7rem', fontWeight: 800 }}>{assignments.assignedCount}</span>}
+                            </button>
                             <button className="btn btn-secondary" onClick={() => { if (confirm('Resetar auditoria?')) reset(); }} style={{ borderRadius: 'var(--radius-md)' }}>
                                 <IconRefresh size={16} /> Limpar
                             </button>
@@ -764,6 +815,26 @@ export default function PisCofinsReviewPage() {
                 )
             }
 
+
+            {/* Assignments Panel */}
+            {showAssignments && (
+                <AssignmentsPanel
+                    onClose={() => setShowAssignments(false)}
+                    onApplyAll={() => handleApplyAll(filteredGroups)}
+                    cstKeys={assignments.cstKeys}
+                    assignments={assignments.assignments}
+                    assignedCount={assignments.assignedCount}
+                    ncmCount={assignments.ncmCount}
+                    ncmList={ncmList}
+                    createKey={assignments.createKey}
+                    updateKey={assignments.updateKey}
+                    removeKey={assignments.removeKey}
+                    assign={assignments.assign}
+                    unassign={assignments.unassign}
+                    clearAll={assignments.clearAll}
+                    exportCsv={assignments.exportCsv}
+                />
+            )}
 
             {/* Toasts */}
             <div className="toast-container">

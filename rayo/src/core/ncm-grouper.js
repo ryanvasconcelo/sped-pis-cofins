@@ -168,3 +168,34 @@ export function generateNCMsCsv(ncmList) {
     });
     return txt;
 }
+
+/**
+ * Detecta NCMs com mais de um CST distinto nos seus registros.
+ * Retorna info sobre divergências de CST PIS e COFINS.
+ * @param {Object} group - Grupo NCM do Map retornado por groupByNCM
+ * @returns {{ pisCsts: Map, cofinsCsts: Map, hasMultiPis: boolean, hasMultiCofins: boolean, hasMultiCst: boolean }}
+ */
+export function detectarMultiCst(group) {
+    // Map de CST → count de registros com aquele CST
+    const pisCsts = new Map();
+    const cofinsCsts = new Map();
+
+    group.records.forEach(rec => {
+        const cstPis = rec.cstPis ? String(rec.cstPis).padStart(2, '0') : null;
+        const cstCofins = rec.cstCofins ? String(rec.cstCofins).padStart(2, '0') : null;
+
+        if (cstPis) pisCsts.set(cstPis, (pisCsts.get(cstPis) || 0) + 1);
+        if (cstCofins) cofinsCsts.set(cstCofins, (cofinsCsts.get(cstCofins) || 0) + 1);
+    });
+
+    const hasMultiPis = pisCsts.size > 1;
+    const hasMultiCofins = cofinsCsts.size > 1;
+
+    return {
+        pisCsts,      // Map<cst, count>
+        cofinsCsts,   // Map<cst, count>
+        hasMultiPis,
+        hasMultiCofins,
+        hasMultiCst: hasMultiPis || hasMultiCofins
+    };
+}

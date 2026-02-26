@@ -70,7 +70,7 @@ export default function AuditorIcmsPage() {
         alterdataBase, eAuditoriaBase,
         alterdataName, eAuditoriaName, alterdataHasSeguro,
         perfilEmpresa, updatePerfil,
-        loading, error, auditResults, ncmSemCobertura, correctedAlterdata,
+        loading, error, auditResults, ncmSemCobertura, correctedAlterdata, modifiedCells,
         handleUploadAlterdata, handleUploadEAuditoria, executeAudit, resetFiles,
         setEAuditoriaBaseSilently // Precisaremos injetar os resultados do robô no state do hook silenciosamente
     } = useIcmsAuditor();
@@ -445,7 +445,7 @@ export default function AuditorIcmsPage() {
 
                     <div style={{ display: 'flex', gap: '12px' }}>
                         {correctedAlterdata && (
-                            <button className="btn btn-success" onClick={() => downloadCorrectedAlterdata(correctedAlterdata, `Auditoria_ICMS_${alterdataName}`)} style={{ padding: '10px 24px', borderRadius: '14px', fontWeight: 800, fontSize: '0.9rem', boxShadow: '0 8px 20px rgba(34, 197, 94, 0.2)' }}>
+                            <button className="btn btn-success" onClick={() => downloadCorrectedAlterdata(correctedAlterdata, `Auditoria_ICMS_${alterdataName}`, modifiedCells || new Map())} style={{ padding: '10px 24px', borderRadius: '14px', fontWeight: 800, fontSize: '0.9rem', boxShadow: '0 8px 20px rgba(34, 197, 94, 0.2)' }}>
                                 <IconDownload size={18} /> Exportar Planilha
                             </button>
                         )}
