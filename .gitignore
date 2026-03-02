@@ -7,17 +7,36 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Dados sensíveis do cliente (NUNCA commitar arquivos SPED Reais)
+# ──────────────────────────────────────────────────────────
+# DADOS SENSÍVEIS — NUNCA COMMITAR
+# ──────────────────────────────────────────────────────────
+# Arquivos SPED reais (dados fiscais de clientes)
 SPEDs/
-transcricao_reuniao.txt
+*.TXT
+*.txt
+!docs/*.txt
+!research/**/*.txt
 
-# Artefatos do Frontend e Backend
+# ──────────────────────────────────────────────────────────
+# MÍDIA E ARQUIVOS DE DEBUG
+# ──────────────────────────────────────────────────────────
+*.mov
+*.mp4
+*.avi
+debug-*.png
+scraper.log
+
+# ──────────────────────────────────────────────────────────
+# ARTEFATOS DE BUILD E DEPENDÊNCIAS
+# ──────────────────────────────────────────────────────────
 node_modules
+**/node_modules
 dist
 dist-ssr
 *.local
 .env
 **/.env
+.vite
 
 # Editor directories and files
 .vscode/*

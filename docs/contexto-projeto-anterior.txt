@@ -1,0 +1,30 @@
+🤖 CONTEXTO PARA O PRÓXIMO AGENTE DE IA
+Olá, Agente. Você está prestes a iniciar o desenvolvimento de um Auditor Fiscal de ICMS baseado em arquivos SPED e relatórios de ERP. Abaixo está o conhecimento técnico e de negócio adquirido no projeto anterior da mesma equipe (Rayo v3.0), que servirá como fundação para a arquitetura deste novo sistema.
+
+1. O Ponto de Partida: A Engenharia de Parsing do SPED
+No projeto anterior, desenvolvemos um motor de parsing de alta performance em JavaScript (client-side) para arquivos .TXT do SPED. Para este novo projeto, você deve reaproveitar os seguintes conceitos arquiteturais:
+
+- Privacidade e Performance: O upload de arquivos de um ano inteiro do SPED (Livrão) é pesado. Mantenha o processamento estritamente no lado do cliente (via File API / FileReader do navegador).
+- Dicionário Universal (Bloco 0200): Assim como fizemos para o PIS/COFINS, qualquer validação fiscal começa lendo o Registro 0200 inteiro e armazenando-o em um Map (Local Dictionary). É o único lugar onde cruzamos o Código Interno do Produto (COD_ITEM) com a sua DESCRIÇÃO e o NCM de 8 dígitos.
+- Novos Registros Alvo: Pela transcrição do Kickoff atual (foco em Notas de Entrada e ICMS), o seu parser deverá ser cirúrgico na leitura dos Registros C100 (Capa da Nota) e C170 (Itens da Nota). É no C170 que moram os atributos vitais deste projeto: CST_ICMS, CFOP e VL_BC_ICMS (Base de Cálculo).
+
+2. O Desafio Central: Motor de Análise Combinatória
+Diferente da versão anterior (onde o usuário aplicava regras simples de "De-Para" manualmente), o novo software é proativo. Ele deve agir como um Auditor Autônomo executando um fluxo de validações. O cliente mencionou a necessidade de uma "análise combinatória".
+
+- Match Semântico de Cadastro (A Validação Inicial): Antes de auditar impostos, o sistema deve validar se a Descrição do produto no ERP tem correspondência lógica com o segmento oficial do NCM atribuído a ele no Bloco 0200.
+- A Matriz de Regras: Você terá que modelar um banco/estado de regras multivariáveis. A validação não é apenas "NCM -> CST". A validação é uma chave composta: [NCM] + [Perfil do Cliente (Indústria/Comércio)] + [CFOP] = [CST(s) Esperado(s)] cruzado com uma Base Externa Oficial de Automação.
+- Obrigação de Base de Cálculo: Certos CSTs exigem que exista uma base de cálculo preenchida obrigatoriamente. O Agente deve estruturar uma validação que confirma se a regra específica daquele CST exige ou não a base preenchida antes da matemática avançar.
+- Falsos Positivos (Tratamento de Exceções): Você precisará programar inteligência contextual. Exemplo prático: Se o CFOP indicar naturezas fora de faturamento direto (ex: Uso e Consumo, Comodato, Transferências), a regra pura do NCM pode sofrer exceções (e a base de cálculo pode precisar ser validada sob regra isenta).
+- Classificação de Erros (Severidade): O sistema não deve apenas apontar "Certo" ou "Errado". Pense em estruturar níveis de severidade para destacar erros críticos na tributação versus apenas divergências de contexto (como uma operação atípica de transferência).
+
+3. A Matemática da Auditoria (Base de Cálculo)
+O cliente revelou a fórmula exata de auditoria que o sistema precisa recalcular (iterando no Registro C170) para verificar se o ERP somou o ICMS corretamente:
+
+- Fórmula Auditada: Valor Base de Cálculo = (Valor do Item - Descontos) + Despesas Acessórias + Valor do Frete + Seguro.
+- Gatilho de Alerta: O Agente deve programar uma função que recalcula isso. Se o Valor Base ICMS Auditado divergir do campo VL_BC_ICMS original da linha, um alarme de cálculo deve ser disparado, indicando erro de parametrização no software de origem do cliente.
+
+4. O Fluxo de Saída / Output
+- Não recrie a roda querendo corrigir o sistema de faturamento (como Alterdata) diretamente. O output do sistema deve ser um Dashboard de Auditoria (Lista de Divergências) paginado ou virtualizado, para lidar com milhares de linhas anuais de SPED sem travar a interface do usuário no navegador.
+- Visibilidade: Mostre ao usuário: A Linha com Alerta, O NCM e Descrição originais, O CST/CFOP que veio do arquivo vs O CST/CFOP esperado pela Matriz de Regras, e o Motivo de Texto daquela Divergência específica.
+
+Resumo da Missão para o Novo Agente: Use a fundação do frontend de performance rápida (React/Vite) e do parser de .TXT que já validamos no projeto Rayo. Construa sobre essa casca um Motor de Regras denso (cruzando validação semântica descritiva e auditoria matemática de ICMS e CST baseado na matriz completa NCM+CFOP+Perfil). Foque 100% nas validações e alertas das notas de ENTRADA inicialmente.

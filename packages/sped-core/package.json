@@ -1,0 +1,15 @@
+{
+  "name": "@rayo/sped-core",
+  "version": "1.0.0",
+  "description": "Motor de parsing, agrupamento e escrita de arquivos SPED EFD-Contribuições",
+  "main": "src/parser.js",
+  "exports": {
+    "./parser": "./src/parser.js",
+    "./writer": "./src/writer.js",
+    "./ncm-grouper": "./src/ncm-grouper.js",
+    "./calculator": "./src/calculator.js"
+  },
+  "type": "module",
+  "keywords": ["sped", "pis", "cofins", "fiscal", "parser"],
+  "license": "UNLICENSED"
+}

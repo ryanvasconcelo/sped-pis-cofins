@@ -1,64 +1,99 @@
-# Rayo — Automação SPED PIS/COFINS
+# Rayo — Hub Fiscal Autônomo
 
-Um sistema web local e de alta performance construído com **Vite + React** para auditar, agrupar e alterar em lote alíquotas e CSTs de arquivos SPED (EFD-Contribuições). 
-
-Rayo foi projetado para contadores e analistas fiscais que precisam processar milhares de linhas de PIS/COFINS no SPED sem depender de integrações complexas de ERP, garantindo que os dados da sua empresa **nunca saiam da sua máquina local**.
-
-![Rayo Interface](rayo/public/logo.png)
-
-## ⚡ Principais Funcionalidades
-
-- **Agrupamento Inteligente por NCM:** O motor reduz um bloco C170/C191/C195 de 15.000 linhas para apenas 60-80 grupos NCM únicos, organizando o caos do arquivo original.
-- **Edição em Lote (Bulk Edit):** Alterou o CST ou Alíquota no grupo do NCM? O sistema varre e atualiza dezenas de milhares de registros filhos dependentes em milissegundos.
-- **Módulo de Automação "De-Para":** Um painel onde você cadastra regras condicionais (`NCM` + `Cód. Produto` + `CST Atual` ➡️ `Novo CST`). O sistema então reclassifica tudo automaticamente.
-- **Renderização Virtualizada:** Construído sobre `react-virtuoso`, o DOM renderiza apenas os cards NCM que estão na tela, garantindo zero lag e 60 FPS no scroll, mesmo com arquivos contendo 80.000 itens.
-- **Extrator de NCMs:** Exporte a relação limpa de NCMs encontrados na escrituração com um clique.
-- **Privacy First (100% Client-Side):** Todo o processamento e cálculos ocorrem no seu próprio navegador usando a File API. Não há APIs externas nem backends. Sem riscos de vazamento de dados fiscais (LGPD).
-
-## 📊 Arquitetura e Engenharia
-
-O projeto é dividido em uma interface React minimalista e um "Core" de processamento de texto SPED puramente funcional (Vanilla JS).
-
-```text
-/rayo/src/core/
- ├── sped-parser.js    # Faz parse de TXTs EFD e extrai blocos 0200, C170, C191, C195
- ├── ncm-grouper.js    # Agrupa entradas por NCM (resolve ausência de NCM no C191 usando C190)
- ├── calculator.js     # Regras de negócio de base de cálculo do PIS/COFINS
- └── sped-writer.js    # Motor de replace em buffer para gerar o novo .TXT idêntico ao validador
-```
-
-A stack escolhida (**Vite + React**) foi otimizada com `--force` no esbuild para pré-empacotar dependências, garantindo inicializações híbridas CJS/ESM (`react-virtuoso`) consistentes via browser.
-
-## 🚀 Como Rodar Localmente
-
-Certifique-se de possuir o [Node.js](https://nodejs.org/) (versão 18+ recomendada) instalado.
-
-1. Clone o repositório ou baixe a pasta.
-2. Navegue até o diretório do frontend:
-```bash
-cd rayo
-```
-3. Instale as dependências:
-```bash
-npm install
-```
-4. Inicie o servidor de desenvolvimento:
-```bash
-npm run dev
-```
-
-O aplicativo abrirá no seu navegador, por padrão na porta `http://localhost:5173`.
-
-## 🛠 Como usar o Módulo De-Para
-
-1. Arraste e solte o seu arquivo `.txt` do SPED Contribuições.
-2. Clique no ícone de Raio **"Regras De-Para"** na barra de ações (Action Bar).
-3. Clique em **Adicionar Regra**.
-4. Defina os critérios de busca (ex: NCM "15079011" e CST Atual "73"). 
-*(Nota: NCM e Código do Produto são opcionais. Se vazios, atuam como curinga).*
-5. Preencha o campo obrigatório **Novo CST** com o imposto desejado (ex: "50" para crédito na alíquota básica).
-6. Clique em **Salvar e Aplicar**. O aplicativo varrerá todo o arquivo e preencherá em verde os NCMs/produtos correspondentes.
-7. Quando terminar, basta clicar em **Exportar TXT Revisado**.
+Sistema web local de alta performance para auditoria, automação e correção de arquivos **SPED PIS/COFINS e ICMS**. Construído para contadores e analistas fiscais da Projecont.
 
 ---
-*Construído com obsessão por performance e design.*
+
+## 📁 Estrutura do Repositório
+
+```
+Rayo/
+├── apps/
+│   ├── rayo/           # Frontend React/Vite (porta 5173)
+│   └── rayo-server/    # Backend Express + Puppeteer (porta 3001)
+│
+├── packages/
+│   └── sped-core/      # Motor de parsing/escrita SPED (lib compartilhada)
+│                       # → parser, writer, ncm-grouper, calculator
+│
+├── docs/               # Toda a documentação do projeto
+│   ├── arquitetura.md
+│   ├── briefing_kickoff.md
+│   ├── roadmap.md
+│   └── ...
+│
+├── research/           # PoCs, experimentos e materiais de descoberta
+│   ├── poc-eauditoria/ # Prova de conceito inicial do scraper
+│   └── novo-modulo/    # Briefings e planilhas do módulo ICMS
+│
+├── scripts/
+│   └── deploy/         # Guias de deploy por plataforma
+│
+└── AI-driven-development/  # Repositório separado (metodologia de dev com IA)
+```
+
+---
+
+## ⚡ Apps
+
+### `apps/rayo` — Frontend
+Interface React virtualizada para processar arquivos SPED no browser (100% client-side, sem upload de dados).
+
+```bash
+cd apps/rayo
+npm install
+npm run dev          # http://localhost:5173
+```
+
+### `apps/rayo-server` — Backend (Microserviço Local)
+Servidor Express que orquestra o robô Puppeteer para scraping do e-Auditoria.
+
+```bash
+cd apps/rayo-server
+# Configure as credenciais:
+cp .env.example .env  # preencha EAUDITORIA_EMAIL e EAUDITORIA_PASSWORD
+node index.js         # http://localhost:3001
+```
+
+**Endpoints:**
+| Método | Rota | Descrição |
+|--------|------|-----------|
+| `GET` | `/api/health` | Status do servidor |
+| `GET` | `/api/queue-status` | Fila de scraping |
+| `POST` | `/api/scrape-eauditoria` | Dispara o robô |
+
+---
+
+## 📦 Pacotes
+
+### `packages/sped-core`
+Motor de parsing e manipulação de arquivos SPED, compartilhado entre apps.
+
+| Módulo | Função |
+|--------|--------|
+| `parser.js` | Faz parse de `.TXT` EFD e extrai blocos 0200, C170, C191, C195 |
+| `ncm-grouper.js` | Agrupa entradas por NCM |
+| `calculator.js` | Regras de base de cálculo PIS/COFINS |
+| `writer.js` | Gera `.TXT` auditado idêntico ao validador |
+
+---
+
+## 🔒 Segurança e Privacidade
+
+- Arquivos `.TXT` SPED são **ignorados pelo git** (dados fiscais de clientes — LGPD)
+- Todo processamento do frontend é **100% client-side** (sem upload externo)
+- Credenciais do e-Auditoria ficam **apenas no `.env` local** (nunca versionado)
+
+---
+
+## 📚 Documentação
+
+Toda a documentação está em [`docs/`](./docs/):
+- [`arquitetura.md`](./docs/arquitetura.md) — Decisões técnicas
+- [`briefing_kickoff.md`](./docs/briefing_kickoff.md) — Kickoff do projeto
+- [`roadmap.md`](./docs/roadmap.md) — Próximas entregas
+- [`handoff-SOP-IA.md`](./docs/handoff-SOP-IA.md) — SOP de handoff entre sessões de IA
+
+---
+
+*Construído com obsessão por performance e design fiscalmente preciso.*
