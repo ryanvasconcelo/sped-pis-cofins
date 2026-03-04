@@ -1,0 +1,19 @@
+{
+    "name": "rayo-monorepo",
+    "private": true,
+    "version": "1.0.0",
+    "description": "Rayo Monorepo Workspace",
+    "engines": {
+        "node": ">=18.0.0"
+    },
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "dev:frontend": "npm run dev --workspace=apps/rayo",
+        "dev:backend": "npm run dev --workspace=apps/rayo-server",
+        "build:frontend": "npm run build --workspace=apps/rayo",
+        "install:all": "npm install"
+    }
+}
