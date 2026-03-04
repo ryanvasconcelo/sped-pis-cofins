@@ -365,7 +365,7 @@ function ChassiRow({ item, index }) {
     );
 }
 
-// ── Tabela de Chassi com Scroll Virtual (react-virtuoso) ──────────────────────
+// ── Tabela de Chassi com Scroll CSS ───────────────────────────────────────────
 
 const GRID_COLS = ['Chassi (7)', 'Chassi Completo', 'Estoque R$', 'Razão R$', 'Delta', 'Status'];
 
@@ -378,39 +378,33 @@ function ChassiTablePaged({ itens }) {
         );
     }
 
-    const tableHeight = Math.min(600, Math.max(200, itens.length * 44 + 40));
-
     return (
         <div className="glass-card" style={{ padding: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
             <div style={{ overflowX: 'auto' }}>
                 <div style={{ minWidth: '760px' }}>
-                    <TableVirtuoso
-                        style={{ height: tableHeight }}
-                        data={itens}
-                        components={{
-                            Table: ({ style, ...props }) => <div style={{ ...style, width: '100%', display: 'flex', flexDirection: 'column' }} {...props} />,
-                            TableHead: React.forwardRef(({ style, ...props }, ref) => <div ref={ref} style={{ ...style, width: '100%', zIndex: 2, position: 'sticky', top: 0 }} {...props} />),
-                            TableRow: ({ item, ...props }) => <div {...props} />,
-                            TableBody: React.forwardRef(({ style, ...props }, ref) => <div ref={ref} style={{ ...style, width: '100%' }} {...props} />),
-                        }}
-                        fixedHeaderContent={() => (
-                            <div style={{ display: 'grid', gridTemplateColumns: gridChassi, background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
-                                {GRID_COLS.map(h => (
-                                    <div key={h} style={{
-                                        padding: '9px 12px',
-                                        textAlign: h === 'Chassi (7)' || h === 'Chassi Completo' ? 'left' : h === 'Status' ? 'center' : 'right',
-                                        fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)',
-                                        textTransform: 'uppercase', letterSpacing: '0.06em',
-                                    }}>
-                                        {h}
-                                    </div>
-                                ))}
+                    {/* Header fixo */}
+                    <div style={{
+                        display: 'grid', gridTemplateColumns: gridChassi,
+                        background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)',
+                        position: 'sticky', top: 0, zIndex: 2,
+                    }}>
+                        {GRID_COLS.map(h => (
+                            <div key={h} style={{
+                                padding: '9px 12px',
+                                textAlign: h === 'Chassi (7)' || h === 'Chassi Completo' ? 'left' : h === 'Status' ? 'center' : 'right',
+                                fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-tertiary)',
+                                textTransform: 'uppercase', letterSpacing: '0.06em',
+                            }}>
+                                {h}
                             </div>
-                        )}
-                        itemContent={(i, item) => (
-                            <ChassiRow item={item} index={i} />
-                        )}
-                    />
+                        ))}
+                    </div>
+                    {/* Body com scroll */}
+                    <div style={{ maxHeight: 560, overflowY: 'auto' }}>
+                        {itens.map((item, i) => (
+                            <ChassiRow key={item.chassi7 || i} item={item} index={i} />
+                        ))}
+                    </div>
                 </div>
             </div>
             <div style={{ padding: '8px 14px', borderTop: '1px solid var(--border)', fontSize: '0.73rem', color: 'var(--text-tertiary)', display: 'flex', justifyContent: 'space-between' }}>
