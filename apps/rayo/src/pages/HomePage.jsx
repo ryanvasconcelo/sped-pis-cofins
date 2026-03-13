@@ -253,6 +253,46 @@ export default function HomePage() {
                         </div>
                     </Link>
 
+                    {/* ── Subvenções ZFM ── módulo independente, sem dependência do rayo-server ── */}
+                    <Link to="/subvencoes" style={{ textDecoration: 'none' }}>
+                        <div className="glass-card" style={{
+                            padding: '40px 32px', height: '100%', display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', gap: '20px',
+                            transition: 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                            border: '1px solid rgba(34, 197, 94, 0.3)',
+                            background: theme === 'dark' ? 'rgba(34, 197, 94, 0.05)' : 'rgba(34, 197, 94, 0.02)',
+                            position: 'relative', overflow: 'hidden'
+                        }}
+                            onMouseEnter={e => {
+                                e.currentTarget.style.transform = 'translateY(-10px) scale(1.02)';
+                                e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.2), 0 0 30px rgba(34, 197, 94, 0.25)';
+                            }}
+                            onMouseLeave={e => {
+                                e.currentTarget.style.transform = 'translateY(0) scale(1)';
+                                e.currentTarget.style.boxShadow = 'var(--glass-shadow)';
+                            }}
+                        >
+                            <div style={{
+                                padding: '18px', background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                                borderRadius: '20px', color: 'white', boxShadow: '0 8px 16px rgba(34, 197, 94, 0.35)'
+                            }}>
+                                <IconSearch size={40} />
+                            </div>
+                            <div>
+                                <h2 style={{ color: 'var(--text-primary)', marginBottom: '12px', fontSize: '1.5rem', fontWeight: 800 }}>
+                                    Subvenções ZFM
+                                    <span style={{ marginLeft: '8px', fontSize: '0.65rem', padding: '2px 8px', border: '1px solid rgba(34,197,94,0.4)', borderRadius: 999, color: '#22c55e', fontWeight: 700, verticalAlign: 'middle' }}>NOVO</span>
+                                </h2>
+                                <p style={{ color: 'var(--text-secondary)', lineHeight: 1.5, fontSize: '0.95rem' }}>
+                                    Apuração automática de ICMS Desonerado (Convênio 65/88). Cruzamento SPED × XML, elegibilidade e laudo PDF/Excel com trilha de auditoria.
+                                </p>
+                            </div>
+                            <div style={{ marginTop: 'auto', color: '#22c55e', fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                Acessar Módulo <IconSearch size={14} />
+                            </div>
+                        </div>
+                    </Link>
+
                 </div>
             </main>
 
