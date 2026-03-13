@@ -61,25 +61,37 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '10mb' })); // NCMs podem ser muitos
 
-// ── Módulo Subvenções ZFM — arquivos estáticos (produção) ────────────────────
-// Em dev: o módulo roda em localhost:5174 (vite dev server independente).
-// Em produção: build do app é servido aqui em /subvencoes-app para eliminar
-//              dependência de porta separada e problemas de cross-origin iframe.
-//
-// Para gerar o build: cd subvencoes/app && npm run build
-// Os arquivos ficam em subvencoes/app/dist/ e são servidos diretamente daqui.
-const SUBVENCOES_DIST = path.resolve(__dirname, '..', '..', '..', 'subvencoes', 'app', 'dist');
+// ── Rayo Hub — frontend estático ─────────────────────────────────────────────
+// Serve o build do Rayo Hub diretamente, eliminando o `serve -s dist` separado.
+// Configure RAYO_DIST no .env se a pasta dist estiver em outro lugar.
+const RAYO_DIST = process.env.RAYO_DIST
+    || path.resolve(__dirname, '..', 'rayo', 'dist');
+
+if (fs.existsSync(RAYO_DIST)) {
+    app.use(express.static(RAYO_DIST));
+    console.log(`   🌐 Rayo Hub: servindo build de ${RAYO_DIST}`);
+} else {
+    console.log(`   ⚠️  Rayo Hub build não encontrado: ${RAYO_DIST}`);
+    console.log(`      Execute: cd apps/rayo && npm run build`);
+}
+
+// ── Módulo Subvenções ZFM — frontend estático ─────────────────────────────────
+// Serve o build do Auditor em /subvencoes-app/ — mesma origem do Rayo Hub,
+// portanto sem CORS nem iframe blocking.
+// Configure SUBVENCOES_DIST no .env se o projeto estiver em outro caminho.
+const SUBVENCOES_DIST = process.env.SUBVENCOES_DIST
+    || path.resolve(__dirname, '..', '..', '..', 'subvencoes', 'app', 'dist');
+
 if (fs.existsSync(SUBVENCOES_DIST)) {
-    // Arquivos estáticos: JS, CSS, assets
     app.use('/subvencoes-app', express.static(SUBVENCOES_DIST));
-    // SPA fallback: qualquer rota dentro de /subvencoes-app/* serve o index.html
     app.get('/subvencoes-app/*', (req, res) => {
         res.sendFile(path.join(SUBVENCOES_DIST, 'index.html'));
     });
     console.log(`   📦 Subvenções ZFM: http://localhost:${process.env.PORT || 3001}/subvencoes-app/`);
 } else {
-    console.log(`   ⚠️  Subvenções ZFM build não encontrado (${SUBVENCOES_DIST})`);
-    console.log(`      Para servir em produção: cd subvencoes/app && npm run build`);
+    console.log(`   ⚠️  Subvenções ZFM build não encontrado: ${SUBVENCOES_DIST}`);
+    console.log(`      1. Execute: cd subvencoes/app && npm run build`);
+    console.log(`      2. Ou defina SUBVENCOES_DIST no .env com o caminho absoluto`);
 }
 
 // ── Health Check ──────────────────────────────────────────────────────────────
@@ -158,11 +170,24 @@ app.post('/api/scrape-eauditoria', async (req, res) => {
     }
 });
 
+// ── SPA fallback — Rayo Hub ───────────────────────────────────────────────────
+// Deve ficar APÓS todas as rotas /api/* e /subvencoes-app/*.
+// Rotas do React Router (ex: /icms, /subvencoes) retornam o index.html do Rayo.
+app.get('*', (req, res) => {
+    const index = path.join(RAYO_DIST, 'index.html');
+    if (fs.existsSync(index)) {
+        res.sendFile(index);
+    } else {
+        res.status(404).send('Execute: cd apps/rayo && npm run build');
+    }
+});
+
 // ── Start ─────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
     console.log(`\n🚀 Rayo Server rodando em http://localhost:${PORT}`);
-    console.log(`   Health: http://localhost:${PORT}/api/health`);
-    console.log(`   Fila:   http://localhost:${PORT}/api/queue-status`);
-    console.log(`   Scraper: POST http://localhost:${PORT}/api/scrape-eauditoria\n`);
+    console.log(`   Acesso na rede: http://<IP-do-servidor>:${PORT}`);
+    console.log(`   Health:   GET  http://localhost:${PORT}/api/health`);
+    console.log(`   Fila:     GET  http://localhost:${PORT}/api/queue-status`);
+    console.log(`   Scraper:  POST http://localhost:${PORT}/api/scrape-eauditoria\n`);
     console.log(`   📋 Sistema de fila ativo: processamento sequencial anti-ban.\n`);
 });
