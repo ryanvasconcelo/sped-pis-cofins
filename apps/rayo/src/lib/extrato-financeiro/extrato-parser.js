@@ -1,7 +1,6 @@
 import * as XLSX from 'xlsx';
-import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// pdfjs-dist é carregado dinamicamente dentro de parsePdfExtrato()
+// para evitar falha de resolução do Rollup/Vite em diferentes plataformas.
 
 /**
  * extrato-parser.js
@@ -220,6 +219,11 @@ function parseMoedaComSinal(valor) {
 // ─── PDF Parser ─────────────────────────────────────────────────────────────
 
 async function parsePdfExtrato(buffer) {
+    // Dynamic import — garante que o Rollup não tente resolver em build time
+    const pdfjsLib = await import('pdfjs-dist/build/pdf.mjs');
+    const pdfWorkerUrl = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).href;
+    pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
     const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
     const pdfDocument = await loadingTask.promise;
     
