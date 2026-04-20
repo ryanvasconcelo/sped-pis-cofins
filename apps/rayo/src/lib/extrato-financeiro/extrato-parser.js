@@ -1,7 +1,8 @@
 import * as XLSX from 'xlsx';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf.mjs';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+// Worker via CDN para evitar resolução em build-time (compatível com Windows/Mac/Linux)
+pdfjsLib.GlobalWorkerOptions.workerSrc =
+    `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
 
 /**
  * extrato-parser.js
