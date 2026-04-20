@@ -112,7 +112,7 @@ export default function HomePage() {
                          </div>
                     </Link>
 
-                    <Link to="/conciliacao-bancaria" className="group rounded-xl border border-border bg-card hover:border-sky-500/50 transition-all p-6 shadow-sm hover:shadow-md relative overflow-hidden flex flex-col justify-between">
+                     <Link to="/conciliacao-bancaria" className="group rounded-xl border border-border bg-card hover:border-sky-500/50 transition-all p-6 shadow-sm hover:shadow-md relative overflow-hidden flex flex-col justify-between">
                          <div>
                              <div className="w-12 h-12 bg-sky-500/10 text-sky-500 rounded-lg flex items-center justify-center mb-4 transition-transform group-hover:scale-110">
                                 <Landmark size={24} />

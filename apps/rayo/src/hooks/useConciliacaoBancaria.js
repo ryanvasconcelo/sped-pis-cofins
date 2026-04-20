@@ -1,22 +1,20 @@
 /**
- * useConciliacaoBancaria.js — Hook Universal Corrigido
+ * useConciliacaoBancaria.js — Hook Universal
  *
- * Quando os arquivos são invertidos (SAP no campo "Razão", Simplificado no campo "Saldo"),
- * o hook normaliza ambas as listas para o schema esperado pelo reconcileBanco:
- *   - Razão → cada item deve ter: { doc, valor, debito, credito, ... }
- *   - Saldo → cada item deve ter: { nrOrigem, nrTransacao, cdML, ... }
+ * Agora suporta 3 arquivos:
+ * - Extrato Bancário (Validação Diária / Categorias)
+ * - Relatório Financeiro (Ponto de partida)
+ * - Razão Interno (Destino final)
  */
 
 import { useState, useCallback, useMemo } from 'react';
 import { parseRazaoBanco } from '../lib/banco-razao/razao-banco-parser';
 import { parseSaldoConta } from '../lib/banco-razao/saldo-conta-parser';
+import { parseExtratoBancario } from '../lib/extrato-financeiro/extrato-parser';
 import { applyNettingRazao, applyNettingSaldoConta } from '../lib/banco-razao/netting-engine';
 import { reconcileBanco, STATUS_BANCO } from '../lib/banco-razao/banco-reconciler';
+import { reconcileExtratoFinanceiro } from '../lib/extrato-financeiro/extrato-reconciler';
 
-/**
- * Converte lançamento do Saldo (nrOrigem, cdML) para schema do Razão (doc, valor).
- * Usado quando a inversão é detectada e o arquivo Simplificado está em parsedB.
- */
 function saldoToRazaoSchema(lancamentos) {
     return lancamentos.map(l => ({
         ...l,
@@ -30,10 +28,6 @@ function saldoToRazaoSchema(lancamentos) {
     }));
 }
 
-/**
- * Converte lançamento do Razão (doc, valor) para schema do Saldo (nrOrigem, cdML).
- * Usado quando a inversão é detectada e o arquivo SAP está em parsedA.
- */
 function razaoToSaldoSchema(lancamentos) {
     return lancamentos.map(l => ({
         ...l,
@@ -45,80 +39,154 @@ function razaoToSaldoSchema(lancamentos) {
 }
 
 export function useConciliacaoBancaria() {
-    const [arquivoRazao, setArquivoRazaoState] = useState(null);
-    const [arquivoSaldo, setArquivoSaldoState] = useState(null);
+    const [arquivo1, setArquivo1] = useState(null);
+    const [arquivo2, setArquivo2] = useState(null);
+    const [arquivo3, setArquivo3] = useState(null);
+    
     const [status, setStatus] = useState('idle');
     const [erro, setErro] = useState(null);
     const [resultado, setResultado] = useState(null);
     const [filtroStatus, setFiltroStatus] = useState('TODOS');
     const [buscaTexto, setBuscaTexto] = useState('');
 
-    const setArquivoRazao = useCallback((file) => { setArquivoRazaoState(file); setResultado(null); }, []);
-    const setArquivoSaldo = useCallback((file) => { setArquivoSaldoState(file); setResultado(null); }, []);
-
     const processar = useCallback(async () => {
-        if (!arquivoRazao || !arquivoSaldo) return;
+        // Pelo menos 2 arquivos são necessários (Financeiro e Razão) para a base. 
+        // O extrato é complementar.
+        const arquivosValidos = [arquivo1, arquivo2, arquivo3].filter(Boolean);
+        if (arquivosValidos.length < 2) {
+             setErro('Selecione pelo menos o Relatório Financeiro e o Razão Interno.');
+             return;
+        }
+
         setStatus('processing');
         setErro(null);
 
         try {
-            const [bufferA, bufferB] = await Promise.all([
-                arquivoRazao.arrayBuffer(),
-                arquivoSaldo.arrayBuffer(),
-            ]);
+            const buffers = await Promise.all(arquivosValidos.map(f => f.arrayBuffer()));
+            const names = arquivosValidos.map(f => f.name);
 
-            // === FASE 1: Parse com Auto-Detecção ===
-            const parsedA = parseRazaoBanco(bufferA);
-            const parsedB = parseSaldoConta(bufferB);
+            let parsedSap = null;
+            let parsedSimp = null;
+            let parsedExt = null;
 
-            // === FASE 2: Normalização de Schemas ===
-            // O reconciliador espera:
-            //   Razão → items com .doc e .valor
-            //   Saldo → items com .nrOrigem e .cdML
-            // Independente de em qual campo o usuário subiu o arquivo.
+            let nameSap = '';
+            let nameSimp = '';
+            let nameExt = '';
 
-            let razaoLancamentos, saldoLancamentos;
-            let arquivosInvertidos = false;
-            let contaNome = parsedB.contaNome || parsedA.contaNome;
+            const allParsed = [];
 
-            if (parsedA.layoutDetectado === 'SIMPLIFICADO' && parsedB.layoutDetectado === 'SAP') {
-                // Usuário subiu Simplificado no campo Razão e SAP no campo Saldo -> Invertido
-                arquivosInvertidos = true;
-                razaoLancamentos = saldoToRazaoSchema(parsedB.lancamentos); // SAP (B) -> Razão
-                saldoLancamentos = razaoToSaldoSchema(parsedA.lancamentos); // Simplificado (A) -> Saldo
-                contaNome = parsedB.contaNome || parsedA.contaNome;
-            } else if (parsedA.layoutDetectado === 'SAP' && parsedB.layoutDetectado === 'SIMPLIFICADO') {
-                // Usuário subiu SAP no campo Razão e Simplificado no campo Saldo — ordem correta
-                razaoLancamentos = parsedA.lancamentos; // já tem .doc e .valor
-                saldoLancamentos = parsedB.lancamentos; // já tem .nrOrigem e .cdML
-            } else {
-                // Mesmo layout nos dois — usa como enviado
-                razaoLancamentos = parsedA.lancamentos;
-                saldoLancamentos = parsedB.lancamentos;
+            for (let i = 0; i < buffers.length; i++) {
+                const b = buffers[i];
+                const name = names[i];
+                let detected = null;
+
+                // 1. Tenta como Razão (SAP ou Simplificado)
+                try {
+                    const res = parseRazaoBanco(b);
+                    if (res.layoutDetectado) {
+                        detected = { ...res, name };
+                    }
+                } catch(e) {}
+
+                // 2. Se não identificou, tenta como Saldo (SIMPLIFICADO ou SAP)
+                if (!detected) {
+                    try {
+                        const res = parseSaldoConta(b);
+                        if (res.layoutDetectado) {
+                            detected = { ...res, name };
+                        }
+                    } catch(e) {}
+                }
+
+                // 3. Se ainda não, ou se for PDF, tenta como Extrato
+                if (!detected || name.toLowerCase().endsWith('.pdf')) {
+                    try {
+                        const res = await parseExtratoBancario(b, name);
+                        if (res.layoutDetectado === 'EXTRATO_BANCARIO') {
+                            // Se já tínhamos detectado como algo antes (ex: excel), 
+                            // o Extrato (que é mais específico p/ PDF) ganha.
+                            detected = { ...res, name };
+                        }
+                    } catch(e) {}
+                }
+
+                if (detected) allParsed.push(detected);
             }
 
-            // === FASE 3: Netting ===
+            // Organizar os resultados
+            const sapFile = allParsed.find(p => p.layoutDetectado === 'SAP');
+            const simpFile = allParsed.find(p => p.layoutDetectado === 'SIMPLIFICADO');
+            const extratoFile = allParsed.find(p => p.layoutDetectado === 'EXTRATO_BANCARIO');
+
+            if (!sapFile || !simpFile) {
+                throw new Error('Para a conciliação completa, identifiquei apenas ' + allParsed.length + ' arquivos válidos. Precisamos de um Razão (SAP) e um Relatório Financeiro (Simplificado).');
+            }
+
+            // Normalização para o Schema Interno do Reconciliador
+            const normalize = (lancamentos, layout) => {
+                return lancamentos.map(l => ({
+                    ...l,
+                    // Garante que todos tenham os campos esperados pelo banco-reconciler e netting-engine
+                    doc: String(l.doc || l.nrOrigem || '').trim(),
+                    nrOrigem: String(l.nrOrigem || l.doc || '').trim(),
+                    transacao: String(l.transacao || l.nrTransacao || '').trim(),
+                    nrTransacao: String(l.nrTransacao || l.transacao || '').trim(),
+                    dataStr: l.dataPgtoStr || l.dataStr || '',
+                    dataPgtoStr: l.dataPgtoStr || l.dataStr || '',
+                    valor: typeof l.valor === 'number' ? l.valor : (typeof l.cdML === 'number' ? l.cdML : (l.debito > 0 ? l.debito : -l.credito)),
+                    cdML: typeof l.cdML === 'number' ? l.cdML : (typeof l.valor === 'number' ? l.valor : (l.debito > 0 ? l.debito : -l.credito)),
+                    debito: Number(l.debito || 0),
+                    credito: Number(l.credito || 0),
+                    detalhes: l.detalhes || l.nome || '',
+                    nome: l.nome || l.detalhes || ''
+                }));
+            };
+
+            const razaoLancamentos = normalize(sapFile.lancamentos, 'SAP');
+            const saldoLancamentos = normalize(simpFile.lancamentos, 'SIMPLIFICADO');
+            let extratoLancamentos = extratoFile ? extratoFile.lancamentos : [];
+
+            nameSap = sapFile.name;
+            nameSimp = simpFile.name;
+            nameExt = extratoFile ? extratoFile.name : '';
+
+
+            // === FASE 1: Extrato x Financeiro (Diário) ===
+            let analiseExtrato = null;
+            if (extratoLancamentos.length > 0) {
+                 // Converter o financeiro para o schema que o extrato-reconciler espera
+                 const finSchema = saldoLancamentos.map(l => ({
+                      id: l.id,
+                      dataStr: l.dataPgtoStr || l.dataStr || '',
+                      descricao: l.detalhes || l.nome || `Doc: ${l.nrOrigem}`,
+                      debito: l.debito,
+                      credito: l.credito,
+                 }));
+                 analiseExtrato = reconcileExtratoFinanceiro(extratoLancamentos, finSchema);
+            }
+
+            // === FASE 2: Netting Financeiro x Razão (Linha a Linha) ===
             const nettingRazao = applyNettingRazao(razaoLancamentos);
             const nettingSaldo = applyNettingSaldoConta(saldoLancamentos);
 
-            // === FASE 4: Reconciliação ===
             const conciliacao = reconcileBanco(nettingRazao.ativos, nettingSaldo.ativos);
 
             setResultado({
-                contaNome,
-                saldoInicial: parsedB.saldoInicial || parsedA.saldoInicial,
-                nomeArquivoRazao: arquivosInvertidos ? arquivoSaldo.name : arquivoRazao.name,
-                nomeArquivoSaldo: arquivosInvertidos ? arquivoRazao.name : arquivoSaldo.name,
-                arquivosInvertidos,
-                layoutA: parsedA.layoutDetectado,
-                layoutB: parsedB.layoutDetectado,
-
+                contaNome: simpFile.contaNome || sapFile.contaNome,
+                saldoInicial: simpFile.saldoInicial || sapFile.saldoInicial,
+                nomeArquivoRazao: nameSap,
+                nomeArquivoSaldo: nameSimp,
+                nomeArquivoExtrato: nameExt,
+                
+                // Dados Linha a Linha (Financeiro x Razão)
                 nettingRazaoStats: nettingRazao.estatisticas,
                 nettingSaldoStats: nettingSaldo.estatisticas,
                 saldoAnulados: nettingSaldo.anulados,
                 razaoAnulados: nettingRazao.anulados,
-
                 ...conciliacao,
+
+                // Dados Diários (Extrato x Financeiro)
+                analiseExtrato
             });
 
             setStatus('done');
@@ -127,14 +195,11 @@ export function useConciliacaoBancaria() {
             setErro(err.message || 'Erro ao processar arquivos.');
             setStatus('error');
         }
-    }, [arquivoRazao, arquivoSaldo]);
+    }, [arquivo1, arquivo2, arquivo3]);
 
     const limpar = useCallback(() => {
-        setArquivoRazaoState(null);
-        setArquivoSaldoState(null);
-        setResultado(null);
-        setStatus('idle');
-        setErro(null);
+        setArquivo1(null); setArquivo2(null); setArquivo3(null);
+        setResultado(null); setStatus('idle'); setErro(null);
     }, []);
 
     const resultadosFiltrados = useMemo(() => {
@@ -154,11 +219,12 @@ export function useConciliacaoBancaria() {
     }, [resultado, filtroStatus, buscaTexto]);
 
     return {
-        arquivoRazao, arquivoSaldo, setArquivoRazao, setArquivoSaldo,
+        arquivo1, arquivo2, arquivo3, 
+        setArquivo1, setArquivo2, setArquivo3,
         status, erro, resultado, resultadosFiltrados,
         filtroStatus, setFiltroStatus, buscaTexto, setBuscaTexto,
         processar, limpar,
-        pronto: !!arquivoRazao && !!arquivoSaldo,
+        pronto: [arquivo1, arquivo2, arquivo3].filter(Boolean).length >= 2,
         processing: status === 'processing'
     };
 }

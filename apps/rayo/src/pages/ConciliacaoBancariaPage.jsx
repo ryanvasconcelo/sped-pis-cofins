@@ -86,17 +86,27 @@ function DropZone({ label, sublabel, accept, onFile, arquivo, onRemove, accent }
 
 // ── Stat Card ────────────────────────────────────────────────────────────────
 
-function StatCard({ label, value, highlight, sub }) {
+function StatCard({ label, value, highlight, sub, icon: Icon }) {
     return (
-        <div style={{
-            padding: '16px 20px', background: 'var(--bg-secondary)',
-            borderRadius: 'var(--radius-md)',
-            border: highlight ? `1.5px solid ${highlight}` : '1px solid var(--border)',
-            flex: 1, minWidth: '150px',
-        }}>
-            <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>{label}</div>
-            <div style={{ fontSize: '1.2rem', fontWeight: 800, color: highlight || 'var(--text-primary)', letterSpacing: '-0.02em' }}>{value}</div>
-            {sub && <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '3px' }}>{sub}</div>}
+        <div className="relative overflow-hidden group p-5 bg-card/40 backdrop-blur-sm rounded-2xl border border-border/50 shadow-sm hover:shadow-md transition-all duration-300 hover:-translate-y-0.5 flex-1 min-w-[200px]">
+            {/* Background Accent */}
+            <div className={`absolute top-0 right-0 w-24 h-24 -mr-8 -mt-8 rounded-full opacity-[0.03] transition-transform duration-500 group-hover:scale-110`} 
+                 style={{ backgroundColor: highlight || 'var(--accent)' }} />
+            
+            <div className="relative z-10">
+                <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{label}</span>
+                    {Icon && <Icon size={14} className="text-muted-foreground/60" />}
+                </div>
+                <div className="text-2xl font-bold tracking-tight" style={{ color: highlight || 'var(--foreground)' }}>
+                    {value}
+                </div>
+                {sub && (
+                    <div className="mt-1 flex items-center gap-1.5">
+                        <span className="text-xs text-muted-foreground/80 font-medium">{sub}</span>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }
@@ -110,71 +120,101 @@ function NettingPanel({ resultado }) {
     const totalAnulados = (ns.anulados || 0) + (nr.anulados || 0);
 
     return (
-        <div style={{ background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <div className="bg-card/30 backdrop-blur-sm rounded-2xl border border-border/50 overflow-hidden shadow-sm transition-all duration-300">
             <button
                 onClick={() => setOpen(p => !p)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}
+                className="w-full px-6 py-4 flex items-center justify-between hover:bg-muted/30 transition-colors"
             >
-                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span style={{ background: 'rgba(100,116,139,0.15)', color: '#64748b', borderRadius: '999px', padding: '2px 10px', fontSize: '0.75rem' }}>⊘ {totalAnulados} lançamentos anulados internamente</span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)' }}>por Netting antes do matching</span>
-                </span>
-                <span style={{ color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>{open ? '▾' : '▸'}</span>
+                <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2 px-3 py-1 bg-slate-500/10 text-slate-500 rounded-full text-[10px] font-black uppercase tracking-widest">
+                        ⊘ {totalAnulados} Anulados
+                    </div>
+                    <div className="text-left">
+                        <div className="text-xs font-bold text-foreground">Saneamento Interno (Netting)</div>
+                        <div className="text-[10px] text-muted-foreground uppercase tracking-tight">Lançamentos compensados antes da conciliação principal</div>
+                    </div>
+                </div>
+                <div className={`transition-transform duration-300 ${open ? 'rotate-180' : ''}`}>
+                    <IconRefresh size={14} className="text-muted-foreground" />
+                </div>
             </button>
 
             {open && (
-                <div style={{ borderTop: '1px solid var(--border)', padding: '16px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    {/* Saldo Stats */}
+                <div className="px-6 pb-6 pt-2 border-t border-border/40 bg-muted/10 grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-2 duration-300">
+                    {/* Coluna Saldo */}
                     <div>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.06em' }}>
+                        <div className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sky-500" />
                             Relatório Banco
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            <span>Total lido: <strong>{ns.total}</strong></span>
-                            <span>Estornos explícitos: <strong style={{ color: '#ef4444' }}>{ns.estornosExplicitos || 0}</strong></span>
-                            <span>Anulados internos: <strong style={{ color: '#f59e0b' }}>{ns.anuladosInternos || 0}</strong></span>
-                            <span>Aptos p/ matching: <strong style={{ color: '#22c55e' }}>{ns.ativos}</strong></span>
-                        </div>
-                        {/* Lista de anulados */}
-                        {resultado.saldoAnulados.length > 0 && (
-                            <div style={{ marginTop: '10px', maxHeight: '140px', overflowY: 'auto' }}>
-                                {resultado.saldoAnulados.map((l, i) => {
-                                    const cfg = STATUS_CFG[l.status] || STATUS_CFG.ANULADO;
-                                    return (
-                                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 0', borderTop: i > 0 ? '1px solid var(--border)' : 'none', fontSize: '0.75rem' }}>
-                                            <span style={{ color: cfg.color, fontWeight: 700, flexShrink: 0 }}>{cfg.icon}</span>
-                                            <span style={{ color: 'var(--text-tertiary)', flexShrink: 0, fontFamily: 'monospace' }}>#{l.nrOrigem}</span>
-                                            <span style={{ color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.detalhes}</span>
-                                            <span style={{ color: l.debito > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace', flexShrink: 0 }}>{l.debito > 0 ? fmt(l.debito) : `-${fmt(l.credito)}`}</span>
-                                        </div>
-                                    );
-                                })}
+                        <div className="space-y-1 mb-4">
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground">Total Lido</span>
+                                <span className="font-bold">{ns.total}</span>
                             </div>
-                        )}
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground font-medium text-rose-500/80">Estornos Explícitos</span>
+                                <span className="font-bold text-rose-500">{ns.estornosExplicitos || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground font-medium text-amber-500/80">Anulados Internos</span>
+                                <span className="font-bold text-amber-500">{ns.anuladosInternos || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground">Aptos p/ Matching</span>
+                                <span className="font-bold text-emerald-500">{ns.ativos}</span>
+                            </div>
+                        </div>
+                        
+                        <div className="max-h-[200px] overflow-y-auto pr-2 space-y-1.5">
+                            {resultado.saldoAnulados.map((l, i) => (
+                                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-card/20 border border-border/30 text-[10px]">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <span className="font-mono text-muted-foreground">#{l.nrOrigem}</span>
+                                        <span className="truncate max-w-[150px] font-medium">{l.detalhes}</span>
+                                    </div>
+                                    <span className={`font-mono font-bold ${l.debito > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {l.debito > 0 ? fmt(l.debito) : `-${fmt(l.credito)}`}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
 
-                    {/* Razao Stats */}
+                    {/* Coluna Razão */}
                     <div>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', marginBottom: '8px', letterSpacing: '0.06em' }}>
+                        <div className="text-[10px] font-black text-muted-foreground uppercase tracking-[0.15em] mb-4 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
                             Razão ERP
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            <span>Total lido: <strong>{nr.total}</strong></span>
-                            <span>Anulados internos: <strong style={{ color: '#f59e0b' }}>{nr.anuladosInternos || 0}</strong></span>
-                            <span>Aptos p/ matching: <strong style={{ color: '#22c55e' }}>{nr.ativos}</strong></span>
-                        </div>
-                        {resultado.razaoAnulados.length > 0 && (
-                            <div style={{ marginTop: '10px', maxHeight: '140px', overflowY: 'auto' }}>
-                                {resultado.razaoAnulados.map((l, i) => (
-                                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '3px 0', borderTop: i > 0 ? '1px solid var(--border)' : 'none', fontSize: '0.75rem' }}>
-                                        <span style={{ color: '#64748b', fontWeight: 700, flexShrink: 0 }}>⊘</span>
-                                        <span style={{ color: 'var(--text-tertiary)', flexShrink: 0, fontFamily: 'monospace' }}>#{l.doc}</span>
-                                        <span style={{ color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome} {l.detalhes}</span>
-                                        <span style={{ color: l.debito > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace', flexShrink: 0 }}>{l.debito > 0 ? fmt(l.debito) : `-${fmt(l.credito)}`}</span>
-                                    </div>
-                                ))}
+                        <div className="space-y-1 mb-4">
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground">Total Lido</span>
+                                <span className="font-bold">{nr.total}</span>
                             </div>
-                        )}
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground font-medium text-amber-500/80">Anulados Internos</span>
+                                <span className="font-bold text-amber-500">{nr.anuladosInternos || 0}</span>
+                            </div>
+                            <div className="flex justify-between text-xs py-1 border-b border-border/30">
+                                <span className="text-muted-foreground">Aptos p/ Matching</span>
+                                <span className="font-bold text-emerald-500">{nr.ativos}</span>
+                            </div>
+                        </div>
+
+                        <div className="max-h-[200px] overflow-y-auto pr-2 space-y-1.5">
+                            {resultado.razaoAnulados.map((l, i) => (
+                                <div key={i} className="flex items-center justify-between p-2 rounded-lg bg-card/20 border border-border/30 text-[10px]">
+                                    <div className="flex items-center gap-2 truncate">
+                                        <span className="font-mono text-muted-foreground">#{l.doc}</span>
+                                        <span className="truncate max-w-[150px] font-medium">{l.nome || l.detalhes}</span>
+                                    </div>
+                                    <span className={`font-mono font-bold ${l.debito > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {l.debito > 0 ? fmt(l.debito) : `-${fmt(l.credito)}`}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 </div>
             )}
@@ -194,26 +234,29 @@ function FilterBar({ filtroStatus, setFiltroStatus, contadores }) {
     ];
 
     return (
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div className="flex gap-2 flex-wrap items-center">
             {filters.map(f => {
                 const active = filtroStatus === f.key;
                 const cfg = STATUS_CFG[f.key];
                 const activeColor = cfg ? cfg.color : 'var(--accent)';
+                
                 return (
-                    <button key={f.key} onClick={() => setFiltroStatus(f.key)}
-                        style={{
-                            padding: '6px 14px', borderRadius: '999px', fontSize: '0.78rem', fontWeight: 600,
-                            border: `1.5px solid ${active ? activeColor : 'var(--border)'}`,
-                            background: active ? (cfg ? cfg.bg : 'rgba(99,102,241,0.1)') : 'transparent',
-                            color: active ? activeColor : 'var(--text-secondary)',
-                            cursor: 'pointer', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px',
-                        }}>
+                    <button 
+                        key={f.key} 
+                        onClick={() => setFiltroStatus(f.key)}
+                        className={`group flex items-center gap-2 px-4 py-2 rounded-xl text-[11px] font-bold uppercase tracking-tight transition-all duration-300 border ${
+                            active 
+                                ? 'bg-card shadow-sm' 
+                                : 'bg-transparent border-transparent text-muted-foreground hover:bg-muted/40'
+                        }`}
+                        style={{ borderColor: active ? activeColor : undefined, color: active ? activeColor : undefined }}
+                    >
                         {f.label}
-                        <span style={{
-                            background: active ? activeColor : 'var(--bg-tertiary)',
-                            color: active ? 'white' : 'var(--text-secondary)',
-                            borderRadius: '999px', padding: '1px 7px', fontSize: '0.7rem', fontWeight: 700,
-                        }}>{f.count}</span>
+                        <span className={`px-2 py-0.5 rounded-md text-[10px] transition-colors ${
+                            active ? 'bg-foreground/5 text-foreground/80' : 'bg-muted text-muted-foreground'
+                        }`}>
+                            {f.count}
+                        </span>
                     </button>
                 );
             })}
@@ -226,12 +269,10 @@ function FilterBar({ filtroStatus, setFiltroStatus, contadores }) {
 function StatusBadge({ status }) {
     const cfg = STATUS_CFG[status] || STATUS_CFG[STATUS_BANCO.PENDENTE_BANCO];
     return (
-        <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '3px 10px', borderRadius: '999px', fontSize: '0.74rem', fontWeight: 700,
-            color: cfg.color, background: cfg.bg, whiteSpace: 'nowrap',
-        }}>
-            {cfg.icon} {cfg.label}
+        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider"
+              style={{ color: cfg.color, backgroundColor: cfg.bg }}>
+            <span className="text-[12px]">{cfg.icon}</span>
+            {cfg.label.split('(')[0].trim()}
         </span>
     );
 }
@@ -243,91 +284,105 @@ const gridLayout = '90px 90px minmax(160px, 1fr) 110px 110px 80px 120px';
 function ResultRow({ item, index }) {
     const [expanded, setExpanded] = useState(false);
     const cfg = STATUS_CFG[item.status] || STATUS_CFG[STATUS_BANCO.PENDENTE_BANCO];
-    const hasDetail = item.lancamentosRazao.length > 0 || item.lancamentosSaldo.length > 0;
-
+    const isEven = index % 2 === 0;
     const chaveDoc = item.razaoDoc || item.saldoNrOrigem || '—';
     const nomeDesc = item.razaoNome || item.saldoDetalhes || '—';
     const dataStr = item.razaoDataStr || item.saldoDataStr || '—';
-
-    // Valor de referência: use saldo (Fonte B) como âncora, ou Razão se só tiver Razão
-    const valorRef = item.lancamentosSaldo.length > 0 ? item.saldoCdML : item.razaoValor;
-    const valorRazao = item.razaoValor;
-    const contaContrapartida = item.saldoContaContrapartida || item.razaoDetalhes || '';
+    const valorSaldo = item.lancamentosSaldo.length > 0 ? item.saldoCdML : null;
+    const valorRazao = item.lancamentosRazao.length > 0 ? item.razaoValor : null;
 
     return (
-        <div style={{ borderBottom: '1px solid var(--border)', width: '100%' }}>
-            <div
-                onClick={() => hasDetail && setExpanded(p => !p)}
-                style={{
-                    display: 'grid', gridTemplateColumns: gridLayout, alignItems: 'center',
-                    borderLeft: `3px solid ${cfg.color}`,
-                    cursor: hasDetail ? 'pointer' : 'default',
-                    background: index % 2 === 0 ? 'transparent' : 'var(--bg-secondary)',
-                    transition: 'background 0.15s',
-                }}
+        <div className="flex flex-col border-b border-border/30">
+            <div 
+                onClick={() => setExpanded(!expanded)}
+                className={`grid grid-cols-[100px_90px_1fr_120px_120px_100px_160px] items-center px-6 py-3.5 hover:bg-muted/40 transition-colors group cursor-pointer ${!isEven ? 'bg-muted/10' : ''}`}
             >
-                {/* Doc/Nr Origem */}
-                <div style={{ padding: '10px 12px', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                <div className="text-xs font-black font-mono text-foreground/80 flex items-center gap-2">
+                    <span className={`text-[10px] transition-transform ${expanded ? 'rotate-90' : ''}`}>▸</span>
                     #{chaveDoc}
                 </div>
-                {/* Data */}
-                <div style={{ padding: '10px 10px', fontSize: '0.78rem', color: 'var(--text-tertiary)', fontFamily: 'monospace' }}>
-                    {dataStr}
+                <div className="text-[11px] font-medium text-muted-foreground font-mono">{dataStr}</div>
+                <div className="pr-4">
+                    <div className="text-[11px] font-bold text-foreground line-clamp-1 truncate">{nomeDesc}</div>
+                    <div className="text-[10px] text-muted-foreground/70 truncate">{item.saldoContaContrapartida || item.razaoDetalhes || ''}</div>
                 </div>
-                {/* Nome/Descrição */}
-                <div style={{ padding: '10px 10px', fontSize: '0.8rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <div>{nomeDesc}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{contaContrapartida}</div>
+                <div className="text-right font-mono text-xs font-bold">
+                    {valorSaldo !== null ? fmt(Math.abs(valorSaldo)) : '—'}
                 </div>
-                {/* Valor Saldo (Fonte B) */}
-                <div style={{ padding: '10px 10px', fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--text-primary)', textAlign: 'right' }}>
-                    {item.lancamentosSaldo.length > 0 ? fmt(Math.abs(valorRef)) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
+                <div className="text-right font-mono text-xs font-bold">
+                    {valorRazao !== null ? fmt(Math.abs(valorRazao)) : '—'}
                 </div>
-                {/* Valor Razão (Fonte A) */}
-                <div style={{ padding: '10px 10px', fontSize: '0.82rem', fontFamily: 'monospace', color: 'var(--text-primary)', textAlign: 'right' }}>
-                    {item.lancamentosRazao.length > 0 ? fmt(Math.abs(valorRazao)) : <span style={{ color: 'var(--text-tertiary)' }}>—</span>}
-                </div>
-                {/* Delta */}
-                <div style={{ padding: '10px 10px', fontFamily: 'monospace', fontSize: '0.82rem', textAlign: 'right', fontWeight: 700, color: item.status === STATUS_BANCO.CONCILIADO ? '#22c55e' : cfg.color }}>
+                <div className={`text-right font-mono text-xs font-black ${item.status === STATUS_BANCO.CONCILIADO ? 'text-emerald-500' : 'text-rose-500'}`}>
                     {item.status === STATUS_BANCO.CONCILIADO ? 'OK' : absFmt(item.deltaAbs)}
                 </div>
-                {/* Status */}
-                <div style={{ padding: '10px 10px', textAlign: 'center' }}>
+                <div className="flex justify-center">
                     <StatusBadge status={item.status} />
                 </div>
             </div>
 
-            {/* Detalhe expandido */}
             {expanded && (
-                <div style={{ background: 'var(--bg-tertiary)', padding: '12px 14px 12px 28px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="px-10 py-6 bg-muted/20 border-t border-border/20 grid grid-cols-1 lg:grid-cols-2 gap-8 animate-in fade-in slide-in-from-top-1 duration-300">
                     {/* Fonte A */}
-                    <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>Razão Interno (Fonte A)</div>
+                    <div className="p-4 rounded-xl bg-card/40 border border-border/40">
+                        <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
+                            Detalhamento Razão Interno
+                        </div>
                         {item.lancamentosRazao.length === 0 ? (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Não encontrado</span>
+                            <div className="text-xs text-muted-foreground font-medium italic">Nenhum lançamento correspondente encontrado no Razão.</div>
                         ) : item.lancamentosRazao.map((l, i) => (
-                            <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span><strong>Doc:</strong> {l.doc} &nbsp; <strong>Nome:</strong> {l.nome}</span>
-                                <span><strong>Detalhes:</strong> {l.detalhes}</span>
-                                <span><strong>Pag.:</strong> {l.dataPgtoStr} &nbsp;
-                                    <strong style={{ color: '#22c55e' }}>Déb:</strong> {fmt(l.debito)} &nbsp;
-                                    <strong style={{ color: '#ef4444' }}>Cré:</strong> {fmt(l.credito)}
-                                </span>
+                            <div key={i} className="text-xs space-y-2">
+                                <div className="flex justify-between pb-2 border-b border-border/20">
+                                    <span className="text-muted-foreground">Documento</span>
+                                    <span className="font-bold">#{l.doc}</span>
+                                </div>
+                                <div className="flex justify-between pb-2 border-b border-border/20">
+                                    <span className="text-muted-foreground">Favorecido / Nome</span>
+                                    <span className="font-bold">{l.nome}</span>
+                                </div>
+                                <div className="flex justify-between pb-2 border-b border-border/20">
+                                    <span className="text-muted-foreground">Data Pagamento</span>
+                                    <span className="font-bold">{l.dataPgtoStr}</span>
+                                </div>
+                                <div className="flex justify-between pt-2">
+                                    <span className="text-muted-foreground">Movimentação</span>
+                                    <div className="flex gap-4">
+                                        <span className="text-emerald-500 font-bold">D: {fmt(l.debito)}</span>
+                                        <span className="text-rose-500 font-bold">C: {fmt(l.credito)}</span>
+                                    </div>
+                                </div>
                             </div>
                         ))}
                     </div>
+
                     {/* Fonte B */}
-                    <div>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-tertiary)', marginBottom: '6px', fontWeight: 700, textTransform: 'uppercase' }}>Saldo da Conta (Fonte B)</div>
+                    <div className="p-4 rounded-xl bg-card/40 border border-border/40">
+                        <div className="text-[10px] font-black text-muted-foreground uppercase tracking-widest mb-4 flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-sky-500" />
+                            Detalhamento Relatório Financeiro
+                        </div>
                         {item.lancamentosSaldo.length === 0 ? (
-                            <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', fontStyle: 'italic' }}>Não encontrado</span>
+                            <div className="text-xs text-muted-foreground font-medium italic">Nenhum lançamento correspondente encontrado no Financeiro.</div>
                         ) : item.lancamentosSaldo.map((l, i) => (
-                            <div key={i} style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                                <span><strong>Nº Origem:</strong> {l.nrOrigem} &nbsp; <strong>Conta:</strong> {l.contaContrapartida}</span>
-                                <span><strong>Detalhes:</strong> {l.detalhes}</span>
-                                <span><strong>Data:</strong> {l.dataStr} &nbsp;
-                                    <strong>C/D (ML):</strong> <span style={{ color: l.cdML > 0 ? '#22c55e' : '#ef4444', fontFamily: 'monospace' }}>{fmt(l.cdML)}</span>
-                                </span>
+                            <div key={i} className="text-xs space-y-2">
+                                <div className="flex justify-between pb-2 border-b border-border/20">
+                                    <span className="text-muted-foreground">Nº Origem / Transação</span>
+                                    <span className="font-bold">#{l.nrOrigem} / {l.nrTransacao}</span>
+                                </div>
+                                <div className="flex justify-between pb-2 border-b border-border/20">
+                                    <span className="text-muted-foreground">Conta Contrapartida</span>
+                                    <span className="font-bold">{l.contaContrapartida}</span>
+                                </div>
+                                <div className="flex justify-between pb-2 border-b border-border/20">
+                                    <span className="text-muted-foreground">Data do Lançamento</span>
+                                    <span className="font-bold">{l.dataStr}</span>
+                                </div>
+                                <div className="flex justify-between pt-2">
+                                    <span className="text-muted-foreground">Valor Líquido (ML)</span>
+                                    <span className={`font-black ${l.cdML > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                        {fmt(l.cdML)}
+                                    </span>
+                                </div>
                             </div>
                         ))}
                     </div>
@@ -347,26 +402,20 @@ const LEGENDA = [
 ];
 
 function Legenda() {
-    const [open, setOpen] = useState(false);
     return (
-        <div style={{ fontSize: '0.78rem' }}>
-            <button onClick={() => setOpen(p => !p)}
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-tertiary)', fontWeight: 600, fontSize: '0.78rem', display: 'flex', alignItems: 'center', gap: '6px', padding: 0 }}>
-                {open ? '▾' : '▸'} {open ? 'Esconder legenda' : 'O que significa cada status?'}
-            </button>
-            {open && (
-                <div style={{ marginTop: '10px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
-                    {LEGENDA.map(item => {
-                        const cfg = STATUS_CFG[item.status];
-                        return (
-                            <div key={item.status} style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', background: cfg.bg, border: `1px solid ${cfg.color}33` }}>
-                                <div style={{ fontWeight: 800, color: cfg.color, fontSize: '0.82rem', marginBottom: '5px' }}>{cfg.icon} {item.titulo}</div>
-                                <p style={{ color: 'var(--text-secondary)', margin: 0, lineHeight: 1.55, fontSize: '0.75rem' }}>{item.desc}</p>
-                            </div>
-                        );
-                    })}
-                </div>
-            )}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {LEGENDA.map(item => {
+                const cfg = STATUS_CFG[item.status];
+                return (
+                    <div key={item.status} className="p-4 rounded-2xl bg-card/20 border border-border/40 backdrop-blur-sm">
+                        <div className="flex items-center gap-2 mb-2 font-black uppercase tracking-widest text-[10px]" style={{ color: cfg.color }}>
+                            <span className="text-lg">{cfg.icon}</span>
+                            {item.titulo}
+                        </div>
+                        <p className="text-[11px] leading-relaxed text-muted-foreground/80 font-medium">{item.desc}</p>
+                    </div>
+                );
+            })}
         </div>
     );
 }
@@ -375,8 +424,8 @@ function Legenda() {
 
 export default function ConciliacaoBancariaPage() {
     const {
-        arquivoRazao, arquivoSaldo,
-        setArquivoRazao, setArquivoSaldo,
+        arquivo1, arquivo2, arquivo3,
+        setArquivo1, setArquivo2, setArquivo3,
         status, erro, resultado, resultadosFiltrados,
         filtroStatus, setFiltroStatus,
         buscaTexto, setBuscaTexto,
@@ -385,6 +434,7 @@ export default function ConciliacaoBancariaPage() {
 
     const accentA = '#6366f1'; // Razão — índigo
     const accentB = '#0ea5e9'; // Saldo — azul
+    const accentC = '#8b5cf6'; // Extrato — roxo
 
     const diferencaGeral = resultado?.diferencaGeral ?? 0;
     const diferencaColor = Math.abs(diferencaGeral) <= 0.05 ? '#22c55e' : '#ef4444';
@@ -392,6 +442,10 @@ export default function ConciliacaoBancariaPage() {
     // ── Export ──────────────────────────────────────────────────────────────
     const handleExport = () => {
         if (!resultado) return;
+        
+        const wb = XLSX.utils.book_new();
+
+        // Aba 1: Razão x Financeiro
         const data = resultadosFiltrados.map(r => ({
             'Doc / Nº Origem': r.razaoDoc || r.saldoNrOrigem || '',
             'Data': r.razaoDataStr || r.saldoDataStr || '',
@@ -402,8 +456,9 @@ export default function ConciliacaoBancariaPage() {
             'Delta': r.delta,
             'Status': STATUS_CFG[r.status]?.label || r.status,
         }));
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Conciliação Principal');
 
-        // Tab Netting
+        // Aba 2: Netting
         const nettingData = [
             ...resultado.saldoAnulados.map(l => ({
                 Fonte: 'Saldo (B)', Doc: l.nrOrigem, Detalhes: l.detalhes,
@@ -414,11 +469,35 @@ export default function ConciliacaoBancariaPage() {
                 Débito: l.debito, Crédito: l.credito, Status: STATUS_CFG[l.status]?.label || l.status,
             })),
         ];
-
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(data), 'Conciliação');
         XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(nettingData), 'Lançamentos Anulados');
-        XLSX.writeFile(wb, `ConciliacaoBancaria_${Date.now()}.xlsx`);
+
+        // Aba 3: Extrato Diário
+        if (resultado.analiseExtrato) {
+            const diariodata = resultado.analiseExtrato.resultadosPorDia.map(d => ({
+                'Data': d.dataDisplay,
+                'Extrato - Débito': d.extratoDebito,
+                'Extrato - Crédito': d.extratoCredito,
+                'Financeiro - Débito': d.financeiroDebito,
+                'Financeiro - Crédito': d.financeiroCredito,
+                'Δ Débito': d.deltaDebito,
+                'Δ Crédito': d.deltaCredito,
+                'Status': d.status
+            }));
+            XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(diariodata), 'Auditoria Extrato Diária');
+
+            // Aba 4: Categorias Extrato
+            const catdata = [
+                ...resultado.analiseExtrato.categorias.aplicacao.map(i => ({ Categoria: 'Aplicação', Data: i.dataStr, Descrição: i.descricao, Valor: i.credito || -i.debito })),
+                ...resultado.analiseExtrato.categorias.resgate.map(i => ({ Categoria: 'Resgate', Data: i.dataStr, Descrição: i.descricao, Valor: i.credito || -i.debito })),
+                ...resultado.analiseExtrato.categorias.rendimento.map(i => ({ Categoria: 'Rendimento', Data: i.dataStr, Descrição: i.descricao, Valor: i.credito || -i.debito })),
+                ...resultado.analiseExtrato.categorias.tarifa.map(i => ({ Categoria: 'Tarifa', Data: i.dataStr, Descrição: i.descricao, Valor: i.credito || -i.debito })),
+            ];
+            if (catdata.length > 0) {
+                 XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(catdata), 'Categorias Extrato');
+            }
+        }
+
+        XLSX.writeFile(wb, `Auditoria_Completa_${Date.now()}.xlsx`);
     };
 
     return (
@@ -456,55 +535,68 @@ export default function ConciliacaoBancariaPage() {
                             </p>
                         </div>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px' }}>
 
-                            {/* Fonte A */}
+                            {/* DropZone 1 */}
                             <div className="glass-card" style={{ padding: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
                                     <div style={{ width: 24, height: 24, borderRadius: 6, background: accentA, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'white', fontWeight: 800 }}>1</div>
                                     <div>
-                                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Primeiro Arquivo (Qualquer um)</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>A ordem dos arquivos não importa, o sistema detecta automaticamente.</div>
+                                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Arquivo 1</div>
                                     </div>
                                 </div>
                                 <DropZone
-                                    label="Arquivo 1"
-                                    sublabel="Solte o primeiro arquivo (.xlsx) aqui"
-                                    accept=".xlsx,.xls"
-                                    arquivo={arquivoRazao}
-                                    onFile={setArquivoRazao}
-                                    onRemove={() => setArquivoRazao(null)}
+                                    label="Upload"
+                                    sublabel="Ex: Razão ERP"
+                                    accept=".xlsx,.xls,.csv,.pdf"
+                                    arquivo={arquivo1}
+                                    onFile={setArquivo1}
+                                    onRemove={() => setArquivo1(null)}
                                     accent={accentA}
                                 />
-                                <div style={{ marginTop: '16px', padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                                    <div>Colunas esperadas no SAP: <strong>Doc · Nome · Detalhes · Débito · Crédito</strong></div>
-                                    <div>Colunas esperadas no Simplificado: <strong>Data Pgto · Nome · Débito · Crédito</strong></div>
-                                </div>
                             </div>
 
-                            {/* Fonte B */}
+                            {/* DropZone 2 */}
                             <div className="glass-card" style={{ padding: '24px' }}>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
                                     <div style={{ width: 24, height: 24, borderRadius: 6, background: accentB, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'white', fontWeight: 800 }}>2</div>
                                     <div>
-                                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Segundo Arquivo (O outro)</div>
-                                        <div style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>A ordem dos arquivos não importa, o sistema detecta automaticamente.</div>
+                                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Arquivo 2</div>
                                     </div>
                                 </div>
                                 <DropZone
-                                    label="Arquivo 2"
-                                    sublabel="Solte o segundo arquivo (.xlsx) aqui"
-                                    accept=".xlsx,.xls"
-                                    arquivo={arquivoSaldo}
-                                    onFile={setArquivoSaldo}
-                                    onRemove={() => setArquivoSaldo(null)}
+                                    label="Upload"
+                                    sublabel="Ex: Relatório Financeiro"
+                                    accept=".xlsx,.xls,.csv,.pdf"
+                                    arquivo={arquivo2}
+                                    onFile={setArquivo2}
+                                    onRemove={() => setArquivo2(null)}
                                     accent={accentB}
                                 />
-                                <div style={{ marginTop: '16px', padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-                                    <div>O Inteligência de Parsing vai identificar sozinho qual arquivo é o Saldo / Bancário e qual arquivo é o Razão / ERP.</div>
-                                    <div>Lançamentos como <em>"Anular entrada..."</em> são saneados automaticamente.</div>
-                                </div>
                             </div>
+
+                            {/* DropZone 3 */}
+                            <div className="glass-card" style={{ padding: '24px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '18px' }}>
+                                    <div style={{ width: 24, height: 24, borderRadius: 6, background: accentC, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', color: 'white', fontWeight: 800 }}>3</div>
+                                    <div>
+                                        <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Arquivo 3 (Opcional)</div>
+                                    </div>
+                                </div>
+                                <DropZone
+                                    label="Upload"
+                                    sublabel="Ex: Extrato Bancário"
+                                    accept=".xlsx,.xls,.csv,.pdf"
+                                    arquivo={arquivo3}
+                                    onFile={setArquivo3}
+                                    onRemove={() => setArquivo3(null)}
+                                    accent={accentC}
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{ padding: '12px 14px', background: 'var(--bg-secondary)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+                            A ordem dos arquivos não importa. A IA analisará as colunas e determinará qual é o Razão, Relatório Financeiro ou Extrato Bancário. Para a conciliação linha-a-linha (Netting) o Razão e o Relatório Financeiro são obrigatórios. O Extrato ativa a validação de totais diários e categorias.
                         </div>
 
                         {/* Como funciona */}
@@ -557,92 +649,205 @@ export default function ConciliacaoBancariaPage() {
                 {resultado && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.4s ease-out' }}>
 
-                        {/* Totais */}
-                        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                            <StatCard label="Conta" value={resultado.contaNome || '—'} sub="identificada no Saldo" />
+                        {/* Dashboard Principal */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+                            <StatCard 
+                                label="Conta Identificada" 
+                                value={resultado.contaNome?.split(' ').pop() || '—'} 
+                                sub={resultado.contaNome || 'Identificada no Saldo'}
+                                icon={IconCheck}
+                            />
                             <StatCard label="Total Saldo (B)" value={fmt(resultado.totalSaldo)} />
                             <StatCard label="Total Razão (A)" value={fmt(resultado.totalRazao)} />
-                            <StatCard label="Diferença Geral" value={absFmt(diferencaGeral)} highlight={diferencaColor}
-                                sub={Math.abs(diferencaGeral) <= 0.05 ? 'OK — fontes batem' : diferencaGeral > 0 ? 'Falta no Saldo' : 'Falta no Razão'} />
-                            <StatCard label="Divergentes" value={resultado.contadores.divergentes}
-                                highlight={resultado.contadores.divergentes > 0 ? '#f59e0b' : undefined} />
-                            <StatCard label="Pendências" value={resultado.contadores.pendentesRazao + resultado.contadores.pendentesBanco}
-                                highlight={(resultado.contadores.pendentesRazao + resultado.contadores.pendentesBanco) > 0 ? '#ef4444' : undefined} />
+                            <StatCard 
+                                label="Diferença Geral" 
+                                value={absFmt(diferencaGeral)} 
+                                highlight={diferencaColor}
+                                sub={Math.abs(diferencaGeral) <= 0.05 ? 'Fontes Batem' : (diferencaGeral > 0 ? 'Falta no Saldo' : 'Falta no Razão')}
+                                icon={IconWarning}
+                            />
+                            <StatCard 
+                                label="Divergentes" 
+                                value={resultado.contadores.divergentes}
+                                highlight={resultado.contadores.divergentes > 0 ? '#f59e0b' : undefined} 
+                            />
+                            <StatCard 
+                                label="Pendências Totais" 
+                                value={resultado.contadores.pendentesRazao + resultado.contadores.pendentesBanco}
+                                highlight={(resultado.contadores.pendentesRazao + resultado.contadores.pendentesBanco) > 0 ? '#ef4444' : undefined} 
+                            />
                         </div>
 
-                        {/* Info */}
-                        <div style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', display: 'flex', gap: '16px', flexWrap: 'wrap' }}>
-                            <span>Razão ERP: <strong style={{ color: 'var(--text-secondary)' }}>{resultado.nomeArquivoRazao}</strong></span>
-                            <span>Relatório Banco: <strong style={{ color: 'var(--text-secondary)' }}>{resultado.nomeArquivoSaldo}</strong></span>
+                        {/* Detalhes dos Arquivos */}
+                        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2 bg-muted/30 rounded-lg border border-border/40 text-[11px] font-medium text-muted-foreground">
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentA }} />
+                                <span>Razão ERP: <span className="text-foreground">{resultado.nomeArquivoRazao}</span></span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentB }} />
+                                <span>Financeiro: <span className="text-foreground">{resultado.nomeArquivoSaldo}</span></span>
+                            </div>
+                            {resultado.nomeArquivoExtrato && (
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accentC }} />
+                                    <span>Extrato: <span className="text-foreground">{resultado.nomeArquivoExtrato}</span></span>
+                                </div>
+                            )}
                         </div>
+
+                        {/* Validação de Extrato Bancário */}
+                        {resultado.analiseExtrato && (
+                            <div className="bg-card/40 backdrop-blur-md rounded-2xl border border-border/60 shadow-sm overflow-hidden border-l-4" style={{ borderColor: accentC }}>
+                                <div className="px-6 py-5 border-b border-border/50 bg-muted/20 flex items-center justify-between">
+                                    <div>
+                                        <h3 className="text-sm font-bold flex items-center gap-2 uppercase tracking-tight">
+                                            <span className="w-6 h-6 rounded bg-purple-500/10 flex items-center justify-center text-purple-500">
+                                                <IconCheck size={14} />
+                                            </span>
+                                            Auditoria Bancária (Extrato vs Financeiro)
+                                        </h3>
+                                        <p className="text-xs text-muted-foreground mt-1">Conferência de fluxos diários e categorização de movimentações bancárias</p>
+                                    </div>
+                                    <div className="px-3 py-1 bg-purple-500/10 text-purple-600 rounded-full text-[10px] font-bold uppercase tracking-wider">
+                                        Validação Diária
+                                    </div>
+                                </div>
+                                
+                                <div className="p-6">
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+                                        <div className="p-4 bg-muted/40 rounded-xl border border-border/40 text-center">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Aplicações</div>
+                                            <div className="text-lg font-bold text-sky-500">{fmt(resultado.analiseExtrato.categorias.aplicacao.reduce((a,c)=>a+(c.credito||c.debito||0),0))}</div>
+                                        </div>
+                                        <div className="p-4 bg-muted/40 rounded-xl border border-border/40 text-center">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Resgates</div>
+                                            <div className="text-lg font-bold text-emerald-500">{fmt(resultado.analiseExtrato.categorias.resgate.reduce((a,c)=>a+(c.credito||c.debito||0),0))}</div>
+                                        </div>
+                                        <div className="p-4 bg-muted/40 rounded-xl border border-border/40 text-center">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Rendimentos</div>
+                                            <div className="text-lg font-bold text-amber-500">{fmt(resultado.analiseExtrato.categorias.rendimento.reduce((a,c)=>a+(c.credito||c.debito||0),0))}</div>
+                                        </div>
+                                        <div className="p-4 bg-muted/40 rounded-xl border border-border/40 text-center">
+                                            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Tarifas</div>
+                                            <div className="text-lg font-bold text-rose-500">{fmt(resultado.analiseExtrato.categorias.tarifa.reduce((a,c)=>a+(c.credito||c.debito||0),0))}</div>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2.5">
+                                        <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3 px-1 flex items-center gap-2">
+                                            <IconRefresh size={10} /> Status das Movimentações por Período
+                                        </div>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                            {resultado.analiseExtrato.resultadosPorDia.map(d => {
+                                                const isOk = d.status === 'CONCILIADO';
+                                                return (
+                                                    <div key={d.dataDisplay} className={`group flex items-center justify-between p-3.5 rounded-xl border transition-all duration-300 ${
+                                                        isOk ? 'bg-emerald-500/5 border-emerald-500/20 hover:border-emerald-500/40' 
+                                                             : 'bg-rose-500/5 border-rose-500/20 hover:border-rose-500/40'
+                                                    }`}>
+                                                        <div className="flex items-center gap-3">
+                                                            <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-[10px] ${
+                                                                isOk ? 'bg-emerald-500/20 text-emerald-600' : 'bg-rose-500/20 text-rose-600'
+                                                            }`}>
+                                                                {d.dataDisplay.split('/')[0]}
+                                                            </div>
+                                                            <div>
+                                                                <div className="text-xs font-bold">{d.dataDisplay}</div>
+                                                                <div className={`text-[10px] font-medium ${isOk ? 'text-emerald-600/80' : 'text-rose-600/80'}`}>
+                                                                    {isOk ? 'Movimentações Conferidas' : 'Divergência Encontrada'}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        {!isOk && (
+                                                            <div className="text-right">
+                                                                <div className="text-[10px] text-muted-foreground">Δ Déb/Créd</div>
+                                                                <div className="text-xs font-mono font-bold text-rose-600">
+                                                                    {absFmt(d.deltaDebito + d.deltaCredito)}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {isOk && <IconCheck size={14} className="text-emerald-500" />}
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        <hr style={{ border: 'none', borderTop: '1px solid var(--border)', margin: '8px 0' }} />
 
                         {/* Netting Panel */}
                         <NettingPanel resultado={resultado} />
 
                         <Legenda />
 
-                        {/* Filter + Busca + Export */}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center', flex: 1 }}>
+                        {/* Lista de Resultados */}
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-wrap items-center justify-between gap-4">
                                 <FilterBar filtroStatus={filtroStatus} setFiltroStatus={setFiltroStatus} contadores={resultado.contadores} />
-                                {/* Busca */}
-                                <div style={{ position: 'relative', minWidth: '200px' }}>
-                                    <IconSearch size={14} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
-                                    <input
-                                        type="text"
-                                        placeholder="Buscar doc, nome, conta..."
-                                        value={buscaTexto}
-                                        onChange={e => setBuscaTexto(e.target.value)}
-                                        style={{
-                                            paddingLeft: '30px', paddingRight: '10px', paddingTop: '6px', paddingBottom: '6px',
-                                            borderRadius: '999px', border: '1.5px solid var(--border)',
-                                            background: 'transparent', color: 'var(--text-primary)', fontSize: '0.78rem',
-                                            outline: 'none', width: '100%',
-                                        }}
-                                    />
-                                </div>
-                            </div>
-                            <button onClick={handleExport} style={{
-                                padding: '8px 16px', background: 'var(--bg-secondary)', color: 'var(--text-primary)',
-                                border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', cursor: 'pointer',
-                                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 700,
-                            }}>
-                                <IconDownload size={16} /> Exportar XLSX
-                            </button>
-                        </div>
-
-                        {/* Table */}
-                        <div className="glass-card" style={{ padding: 0, overflow: 'hidden' }}>
-                            <div style={{ overflowX: 'auto' }}>
-                                <div style={{ minWidth: '900px' }}>
-                                    {/* Header */}
-                                    <div style={{ display: 'grid', gridTemplateColumns: gridLayout, alignItems: 'center', background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border)' }}>
-                                        {['Doc/Origem', 'Data', 'Nome / Detalhes', 'Valor Saldo (B)', 'Valor Razão (A)', 'Delta', 'Status'].map(h => (
-                                            <div key={h} style={{ padding: '10px 12px', textAlign: ['Valor Saldo (B)', 'Valor Razão (A)', 'Delta'].includes(h) ? 'right' : h === 'Status' ? 'center' : 'left', fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-tertiary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                                                {h}
-                                            </div>
-                                        ))}
-                                    </div>
-
-                                    {/* Body */}
-                                    {resultadosFiltrados.length === 0 ? (
-                                        <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-tertiary)', fontSize: '0.85rem' }}>
-                                            Nenhum resultado para este filtro
-                                        </div>
-                                    ) : (
-                                        <Virtuoso
-                                            style={{ height: '520px' }}
-                                            data={resultadosFiltrados}
-                                            itemContent={(index, item) => (
-                                                <ResultRow key={`${item.razaoDoc || item.saldoNrOrigem}-${index}`} item={item} index={index} />
-                                            )}
+                                
+                                <div className="flex items-center gap-3 flex-1 md:flex-none md:min-w-[400px]">
+                                    <div className="relative flex-1">
+                                        <IconSearch size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                                        <input
+                                            type="text"
+                                            placeholder="Filtrar por documento, nome ou conta..."
+                                            value={buscaTexto}
+                                            onChange={e => setBuscaTexto(e.target.value)}
+                                            className="w-full pl-11 pr-4 py-2.5 bg-card/40 border border-border/60 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
                                         />
-                                    )}
+                                    </div>
+                                    <button onClick={handleExport} className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:opacity-90 transition-opacity shadow-lg shadow-primary/20">
+                                        <IconDownload size={14} /> Exportar
+                                    </button>
                                 </div>
                             </div>
-                            <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-tertiary)', display: 'flex', justifyContent: 'space-between' }}>
-                                <span>Clique em uma linha para ver os detalhes de cada fonte</span>
-                                <span>{resultadosFiltrados.length} de {resultado.contadores.total} registros</span>
+
+                            <div className="bg-card/40 backdrop-blur-md rounded-2xl border border-border/60 shadow-xl overflow-hidden">
+                                <div className="overflow-x-auto">
+                                    <div className="min-w-[1000px]">
+                                        {/* Header da Tabela */}
+                                        <div className="grid grid-cols-[100px_90px_1fr_120px_120px_100px_160px] items-center px-6 py-4 bg-muted/30 border-b border-border/50 text-[10px] font-black text-muted-foreground uppercase tracking-widest">
+                                            <div>Doc/Origem</div>
+                                            <div>Data</div>
+                                            <div>Descrição / Detalhes</div>
+                                            <div className="text-right">Saldo (B)</div>
+                                            <div className="text-right">Razão (A)</div>
+                                            <div className="text-right">Delta</div>
+                                            <div className="text-center">Status</div>
+                                        </div>
+
+                                        {/* Corpo da Tabela */}
+                                        <div className="relative">
+                                            {resultadosFiltrados.length === 0 ? (
+                                                <div className="py-20 text-center flex flex-col items-center gap-3">
+                                                    <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center text-muted-foreground">
+                                                        <IconSearch size={24} />
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground font-medium">Nenhum lançamento encontrado para os filtros aplicados</p>
+                                                </div>
+                                            ) : (
+                                                <Virtuoso
+                                                    style={{ height: '600px' }}
+                                                    data={resultadosFiltrados}
+                                                    itemContent={(index, item) => (
+                                                        <ResultRow key={`${item.razaoDoc || item.saldoNrOrigem}-${index}`} item={item} index={index} />
+                                                    )}
+                                                />
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="px-6 py-3 bg-muted/20 border-t border-border/50 flex items-center justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-1 h-1 rounded-full bg-primary" />
+                                        Exibindo {resultadosFiltrados.length} de {resultado.contadores.total} registros
+                                    </div>
+                                    <div>Pressione em uma linha para ver a origem</div>
+                                </div>
                             </div>
                         </div>
                     </div>

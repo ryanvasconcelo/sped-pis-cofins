@@ -23,7 +23,7 @@ export function parseSaldoConta(buffer) {
 
     // 1. Detectar Layout
     let headerRowIndex = -1;
-    let layoutType = 'SAP';
+    let layoutType = null;
 
     for (let i = 0; i < Math.min(sheetData.length, 20); i++) {
         const rowStr = sheetData[i].join(' ').toLowerCase();
@@ -39,6 +39,9 @@ export function parseSaldoConta(buffer) {
         }
     }
 
+    if (!layoutType) {
+        throw new Error('Não foi possível identificar as colunas (Layout Desconhecido).');
+    }
     if (headerRowIndex === -1) headerRowIndex = 0;
 
     const dataRows = sheetData.slice(headerRowIndex + 1);
@@ -72,7 +75,7 @@ export function parseSaldoConta(buffer) {
             nrTransacao = String(row[2] ?? '').trim();        // Nº transação
             detalhes = String(row[6] ?? '').trim();           // Detalhes
             contaContrapartida = String(row[5] ?? '').trim(); // Conta de contrapartida
-            dataStr = String(row[1] ?? '').trim();            // Data de lançamento
+            dataStr = normalizarData(row[1]) || '';            // Data de lançamento
             debito = parseMoeda(row[9]);                      // Débito (MC)
             credito = parseMoeda(row[10]);                    // Crédito (MC)
 
@@ -94,7 +97,7 @@ export function parseSaldoConta(buffer) {
             nrTransacao = null;
             detalhes = String(row[2] ?? '').trim();           // Detalhes da Linha
             contaContrapartida = '';
-            dataStr = String(row[4] ?? '').trim();            // Data de Pagamento
+            dataStr = normalizarData(row[4]) || '';            // Data de Pagamento
             debito = parseMoeda(row[5]);                      // Débito
             credito = parseMoeda(row[6]);                     // Crédito
         }
@@ -133,4 +136,30 @@ function parseMoeda(valor) {
     }
     // Formato EN: 1234.56
     return Math.abs(parseFloat(str) || 0);
+}
+
+function normalizarData(val) {
+    if (!val && val !== 0) return null;
+    if (typeof val === 'number' && val > 1000) {
+        try {
+            const d = XLSX.SSF.parse_date_code(val);
+            if (d) return `${String(d.d).padStart(2,'0')}/${String(d.m).padStart(2,'0')}/${d.y}`;
+        } catch (_) {}
+    }
+    const s = String(val).trim();
+    if (!s) return null;
+    const m1 = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/);
+    if (m1) {
+        const [, d, mo, y] = m1;
+        const year = y.length === 2 ? `20${y}` : y;
+        return `${d.padStart(2,'0')}/${mo.padStart(2,'0')}/${year}`;
+    }
+    const num = Number(s);
+    if (!isNaN(num) && num > 1000) {
+        try {
+            const d = XLSX.SSF.parse_date_code(num);
+            if (d) return `${String(d.d).padStart(2,'0')}/${String(d.m).padStart(2,'0')}/${d.y}`;
+        } catch (_) {}
+    }
+    return s;
 }
