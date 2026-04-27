@@ -7,6 +7,7 @@ import EstoqueAuditorPage from './pages/EstoqueAuditorPage';
 import SubvencoesPage from './pages/SubvencoesPage';
 import ConciliacaoNotasPage from './pages/ConciliacaoNotasPage';
 import ConciliacaoBancariaPage from './pages/ConciliacaoBancariaPage';
+import RetificacaoCodigosPage from './pages/RetificacaoCodigosPage';
 
 export default function App() {
     return (
@@ -20,6 +21,7 @@ export default function App() {
                 <Route path="/subvencoes" element={<SubvencoesPage />} />
                 <Route path="/conciliacao-notas" element={<ConciliacaoNotasPage />} />
                 <Route path="/conciliacao-bancaria" element={<ConciliacaoBancariaPage />} />
+                <Route path="/retificacao-codigos" element={<RetificacaoCodigosPage />} />
             </Routes>
         </BrowserRouter>
     );

@@ -1,0 +1,17 @@
+Contábil SO
+
+- Enhacement tickets module - add hook para criar chamados e adaptar o modulo de chamados com as feats do sysOS
+
+“Erros”
+assigneeId invalido (precisa ser STAFF ativo da mesma org)
+
+
+Implementações
+
+
+
+
+
+- preparar base de empresa e times para integração
+
+- Cnpj, razão social, regime fiscal e contábil, responsáveis por setor e contatos das empresas
