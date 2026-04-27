@@ -57,8 +57,13 @@ export function reconcileExtratoFinanceiro(extratoLancamentos, financeiroLancame
         const e = extratoByDay[data] || { debito: 0, credito: 0, lancamentos: [], dataDisplay: formatDataIsoDisplay(data) };
         const f = financeiroByDay[data] || { debito: 0, credito: 0, lancamentos: [], dataDisplay: formatDataIsoDisplay(data) };
 
-        const deltaDebito = Number((e.debito - f.debito).toFixed(2));
-        const deltaCredito = Number((e.credito - f.credito).toFixed(2));
+        // O Financeiro (Razão) tem lógica contábil: Débito = Entrada, Crédito = Saída.
+        // O Extrato Bancário tem lógica bancária: Débito = Saída, Crédito = Entrada.
+        // Portanto, comparamos:
+        // Extrato Débito (Saída) com Financeiro Crédito (Saída)
+        // Extrato Crédito (Entrada) com Financeiro Débito (Entrada)
+        const deltaDebito = Number((e.debito - f.credito).toFixed(2));
+        const deltaCredito = Number((e.credito - f.debito).toFixed(2));
         
         const isConciliado = Math.abs(deltaDebito) <= 0.05 && Math.abs(deltaCredito) <= 0.05;
         const status = isConciliado ? 'CONCILIADO' : 'DIVERGENTE';
