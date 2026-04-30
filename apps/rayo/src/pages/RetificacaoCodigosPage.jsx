@@ -296,7 +296,6 @@ function exportXlsx(rows, meta) {
 
 function exportPdf(rows, meta, stats) {
     const doc = new jsPDF('landscape', 'pt', 'a4');
-    const pageWidth = doc.internal.pageSize.width;
 
     doc.setFontSize(16);
     doc.setTextColor(30, 41, 59);
@@ -476,6 +475,9 @@ export default function RetificacaoCodigosPage() {
                             <StatCard label="A corrigir"      value={stats.aCorrigir}  color="#ef4444" />
                             <StatCard label="Corretos"        value={stats.corretos}   color="#22c55e" />
                             <StatCard label="Sem XML"         value={stats.semXml + stats.itemNaoEnc} color="#94a3b8" />
+                            {(stats.inseridos0200 > 0) && (
+                                <StatCard label="0200 Inseridos" value={stats.inseridos0200} color="#06b6d4" />
+                            )}
                             {(stats.cProdInvalido > 0) && (
                                 <StatCard label="cProd Inválido" value={stats.cProdInvalido} color="#f59e0b" />
                             )}
@@ -547,7 +549,8 @@ export default function RetificacaoCodigosPage() {
 
                         {stats.aCorrigir > 0 && (
                             <p style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)', marginTop: -12 }}>
-                                O SPED corrigido aplica {stats.aCorrigir} correção(ões) exclusivamente nos registros C170 (campo COD_ITEM). Registros 0200 e demais blocos não são alterados.
+                                O SPED corrigido aplica {stats.aCorrigir} correção(ões) no C170 (COD_ITEM)
+                                {stats.inseridos0200 > 0 ? ` e insere ${stats.inseridos0200} novo(s) registro(s) no 0200. Os contadores 0990, 9900 e 9999 são atualizados automaticamente.` : '. Registros 0200 não precisaram de novos cadastros.'}
                             </p>
                         )}
                     </>

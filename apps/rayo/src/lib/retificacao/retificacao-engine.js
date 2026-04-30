@@ -38,9 +38,10 @@ export function parseSpedForRetificacao(content) {
         const reg = fields[1];
 
         if (reg === '0000') {
-            companyName = fields[8] || '';
-            cnpj = fields[9] || '';
-            period = `${fields[6] || ''} a ${fields[7] || ''}`;
+            // |0000|COD_VER|COD_FIN|DT_INI|DT_FIN|NOME|CNPJ|CPF|UF|IE|...
+            companyName = fields[6] || '';
+            cnpj        = fields[7] || '';
+            period      = `${fields[4] || ''} a ${fields[5] || ''}`;
         } else if (reg === '0200') {
             // |0200|COD_ITEM|DESCR_ITEM|COD_BARRA|...
             const codItem = (fields[2] || '').trim();
@@ -89,12 +90,10 @@ export function parseNfeXml(xmlText) {
         const parser = new DOMParser();
         const doc = parser.parseFromString(xmlText, 'application/xml');
 
-        // Helper: pega elementos por nome local, em qualquer namespace
         const byTag = (root, tagName) => root.getElementsByTagNameNS('*', tagName);
         const firstByTag = (root, tagName) => byTag(root, tagName)[0] ?? null;
         const textOf = el => el ? el.textContent.trim() : '';
 
-        // Verificar erro de parse (tag varia por browser)
         if (doc.documentElement?.tagName === 'parsererror') return null;
         if (firstByTag(doc, 'parsererror')) return null;
 
@@ -140,7 +139,7 @@ export function parseNfeXml(xmlText) {
  * Cruza dados do SPED com os XMLs e gera:
  *   - rows: linhas da tabela de retificação
  *   - c170Mods: modificações a aplicar nos C170
- *   - c0200Mods: modificações a aplicar nos 0200
+ *   - c0200Mods: modificações a aplicar nos 0200 (add = inserir nova linha, skip = já existe)
  *   - stats
  */
 export function buildRetificacao(spedData, xmlByChave) {
@@ -162,8 +161,10 @@ export function buildRetificacao(spedData, xmlByChave) {
                     numItem:   c170.numItem,
                     codSped:   c170.codItem,
                     codNFe:    null,
+                    codNFeRaw: null,
                     descrSped: c170.descr,
                     descrNFe:  null,
+                    ncm:       null,
                     status:    'sem_xml',
                     c170LineIdx: c170.lineIdx
                 });
@@ -180,8 +181,10 @@ export function buildRetificacao(spedData, xmlByChave) {
                     numItem:   c170.numItem,
                     codSped:   c170.codItem,
                     codNFe:    null,
+                    codNFeRaw: null,
                     descrSped: c170.descr,
                     descrNFe:  null,
+                    ncm:       null,
                     status:    'item_nao_encontrado',
                     c170LineIdx: c170.lineIdx
                 });
@@ -221,41 +224,46 @@ export function buildRetificacao(spedData, xmlByChave) {
         .map(r => ({ lineIdx: r.c170LineIdx, codSped: r.codSped, codNFe: r.codNFe }));
 
     // ── Modificações 0200 ──
-    // Agrupar codSped → Set<codNFe> para detectar conflitos
-    const codMap = new Map(); // codSped → Set<codNFe>
+    // codSped → Map<codNFe, {xProd, ncm}>  (deduplicado)
+    const codMap = new Map();
     for (const r of rows.filter(r => r.status === 'a_corrigir')) {
-        if (!codMap.has(r.codSped)) codMap.set(r.codSped, new Set());
-        codMap.get(r.codSped).add(r.codNFe);
+        if (!codMap.has(r.codSped)) codMap.set(r.codSped, new Map());
+        const nfeMap = codMap.get(r.codSped);
+        if (!nfeMap.has(r.codNFe)) {
+            nfeMap.set(r.codNFe, { xProd: r.descrNFe, ncm: r.ncm });
+        }
     }
 
-    const c0200Mods = [];
-    for (const [codSped, nfeSet] of codMap) {
-        const entry = items0200.get(codSped);
-        if (!entry) continue; // sem entrada 0200 para este código
+    // Conjunto que cresce conforme inserções são programadas — usado para garantir
+    // que cada codNFe seja inserido apenas UMA vez no 0200 (evita duplicata de
+    // chave primária COD_ITEM, que é rejeitada pelo PVA).
+    const willBeIn0200 = new Set(items0200.keys());
 
-        if (nfeSet.size === 1) {
-            const [codNFe] = nfeSet;
-            // Se o código correto já existe em 0200, não precisamos renomear —
-            // apenas o C170 vai apontar para a entrada existente
-            const alreadyExists = items0200.has(codNFe);
+    const c0200Mods = [];
+    for (const [codSped, nfeMap] of codMap) {
+        const entry    = items0200.get(codSped);
+        const conflict = nfeMap.size > 1;
+
+        for (const [codNFe, { xProd, ncm }] of nfeMap) {
+            // action:
+            //   'add'      → codNFe ainda ausente: inserir nova linha (copia entrada do codSped)
+            //   'skip'     → codNFe já presente (catálogo original ou já programado por outro codSped)
+            //   'no_entry' → codSped não tem entrada 0200: C170 corrigido mas 0200 não pode ser gerado
+            let action;
+            if (!entry)                          action = 'no_entry';
+            else if (willBeIn0200.has(codNFe))   action = 'skip';
+            else { action = 'add'; willBeIn0200.add(codNFe); }
+
             c0200Mods.push({
-                lineIdx:  entry.lineIdx,
+                lineIdx:        entry ? entry.lineIdx : -1,
+                existingFields: entry ? [...entry.fields] : null,
                 codSped,
                 codNFe,
-                conflict: false,
-                skip:     alreadyExists  // true = C170 será corrigido mas 0200 já existe
+                xProd:    xProd || null,
+                ncm:      ncm   || null,
+                conflict,
+                action,
             });
-        } else {
-            // Conflito: mesmo código SPED mapeia para múltiplos cProd
-            for (const codNFe of nfeSet) {
-                c0200Mods.push({
-                    lineIdx:  entry.lineIdx,
-                    codSped,
-                    codNFe,
-                    conflict: true,
-                    skip:     false
-                });
-            }
         }
     }
 
@@ -267,7 +275,8 @@ export function buildRetificacao(spedData, xmlByChave) {
         itemNaoEnc:     rows.filter(r => r.status === 'item_nao_encontrado').length,
         cProdInvalido:  rows.filter(r => r.status === 'cprod_invalido').length,
         conflitos:      c0200Mods.filter(m => m.conflict).length,
-        nfsComXml:      [...new Set(rows.filter(r => r.status !== 'sem_xml').map(r => r.chvNFe))].length
+        nfsComXml:      [...new Set(rows.filter(r => r.status !== 'sem_xml').map(r => r.chvNFe))].length,
+        inseridos0200:  c0200Mods.filter(m => m.action === 'add').length,
     };
 
     return { rows, c170Mods, c0200Mods, stats };
@@ -276,19 +285,77 @@ export function buildRetificacao(spedData, xmlByChave) {
 // ─── Geração do SPED corrigido ────────────────────────────────────────────────
 
 /**
- * Aplica as modificações nos C170 (campo COD_ITEM, field[3]).
- * Apenas C170 é modificado — 0200 e demais registros não são alterados.
+ * Aplica as modificações no SPED:
+ *   - C170: campo COD_ITEM (field[3]) atualizado para o código correto
+ *   - 0200: novas linhas inseridas para cada codNFe ausente no catálogo,
+ *           copiando os campos da entrada existente do codSped (UNID, TIPO, NCM, etc.)
+ *           e substituindo COD_ITEM (field[2]) e DESCR_ITEM (field[3]) pelo valor do XML
+ *   - Contadores de registro atualizados: 0990, 9900[0200] e 9999
  */
-export function applyRetificacao(rawLines, lineEnding, c170Mods) {
+export function applyRetificacao(rawLines, lineEnding, c170Mods, c0200Mods = []) {
     const lines = [...rawLines];
 
+    // Aplicar modificações C170
     for (const mod of c170Mods) {
         const fields = lines[mod.lineIdx].split('|');
         fields[3] = mod.codNFe;
         lines[mod.lineIdx] = fields.join('|');
     }
 
-    return lines.join(lineEnding);
+    // Construir mapa de inserções: lineIdx → [novas linhas a inserir após]
+    const insertAfter = new Map();
+    for (const mod of c0200Mods) {
+        if (mod.action !== 'add' || mod.lineIdx < 0 || !mod.existingFields) continue;
+        if (!insertAfter.has(mod.lineIdx)) insertAfter.set(mod.lineIdx, []);
+        const f = [...mod.existingFields];
+        f[2] = mod.codNFe;
+        if (mod.xProd) f[3] = mod.xProd;
+        insertAfter.get(mod.lineIdx).push(f.join('|'));
+    }
+
+    if (insertAfter.size === 0) return lines.join(lineEnding);
+
+    // Reconstruir arquivo com inserções
+    const output = [];
+    for (let i = 0; i < lines.length; i++) {
+        output.push(lines[i]);
+        const extra = insertAfter.get(i);
+        if (extra) output.push(...extra);
+    }
+
+    const added = [...insertAfter.values()].reduce((n, arr) => n + arr.length, 0);
+
+    // Atualizar 0990 — total de linhas do bloco 0
+    for (let i = output.length - 1; i >= 0; i--) {
+        const f = output[i].split('|');
+        if (f[1] === '0990') {
+            f[2] = String((parseInt(f[2], 10) || 0) + added);
+            output[i] = f.join('|');
+            break;
+        }
+    }
+
+    // Atualizar 9900 — contagem do registro 0200
+    for (let i = 0; i < output.length; i++) {
+        const f = output[i].split('|');
+        if (f[1] === '9900' && f[2] === '0200') {
+            f[3] = String((parseInt(f[3], 10) || 0) + added);
+            output[i] = f.join('|');
+            break;
+        }
+    }
+
+    // Atualizar 9999 — total geral de linhas do arquivo
+    for (let i = output.length - 1; i >= 0; i--) {
+        const f = output[i].split('|');
+        if (f[1] === '9999') {
+            f[2] = String((parseInt(f[2], 10) || 0) + added);
+            output[i] = f.join('|');
+            break;
+        }
+    }
+
+    return output.join(lineEnding);
 }
 
 // ─── Encode / Download ────────────────────────────────────────────────────────

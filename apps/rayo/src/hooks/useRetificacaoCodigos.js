@@ -138,7 +138,8 @@ export function useRetificacaoCodigos() {
         const conteudo = applyRetificacao(
             spedData.rawLines,
             spedData.lineEnding,
-            c170Mods
+            c170Mods,
+            c0200Mods
         );
         const base = arquivoSped?.name?.replace(/\.txt$/i, '') || 'SPED';
         downloadSpedTxt(conteudo, `${base}_RETIFICADO.txt`);
